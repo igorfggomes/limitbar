@@ -26,6 +26,7 @@ Clique na faixa e o painel abre colado na barra, em **barras** (modo padrão) ou
 - **Minigráfico** do consumo ao longo da janela, na visão em anéis (histórico guardado por 7 dias).
 - Tema claro/escuro automático e fundo de vidro (acrílico) do Windows 11.
 - **Notificações** ao passar de 80% e de 95% de qualquer janela.
+- **Atualização com um clique**: o app avisa quando sai uma versão nova (um ⬆ na faixa e um aviso no painel) e atualiza sozinho.
 - **Iniciar com o Windows** pelo menu (clique direito na faixa).
 
 ## Como funciona
@@ -68,7 +69,7 @@ powershell -ExecutionPolicy Bypass -File instalar.ps1
 
 O script empacota o app, instala em `%LOCALAPPDATA%\Programs\LimitBar` e cria atalhos na Área de Trabalho e no Menu Iniciar. Depois é só abrir o **LimitBar** como qualquer programa (o Node.js só é necessário para essa etapa). Para abrir junto com o Windows, clique com o botão direito na faixa e marque "Iniciar com o Windows".
 
-Para atualizar, rode o `instalar.ps1` de novo.
+Para atualizar, use o aviso dentro do app (veja [Atualizações](#atualizações)) ou rode o `instalar.ps1` de novo.
 
 ### Rodar direto do código
 
@@ -84,9 +85,22 @@ Para abrir sem janela de console, dê dois cliques em `iniciar.vbs`.
 | Ação | Resultado |
 |---|---|
 | Clique na faixa | Abre ou fecha o painel de detalhes |
-| Clique direito na faixa | Menu: atualizar, barras/anéis, manter aberto, iniciar com o Windows, sair |
+| Botão ⚙ do painel | **Minimizar ao fechar** (o ✕ só esconde o painel, padrão) e **Procurar atualizações** |
+| Clique direito na faixa | Menu: atualizar, barras/anéis, manter aberto, iniciar com o Windows, procurar atualizações, sair |
 | Arrastar a alça `⋮⋮` | Move a faixa na horizontal (a posição é salva) |
 | Mouse sobre um anel | Horário do reset, ritmo esperado e projeção |
+
+## Atualizações
+
+O LimitBar consulta as [Releases do GitHub](https://github.com/igorfggomes/limitbar/releases) ao abrir e a cada 6 horas. Quando há versão nova:
+
+1. aparece um **⬆** na faixa e um aviso no painel, além de uma notificação do Windows;
+2. clique em **Atualizar agora**: o app baixa o zip, confere o **SHA-256** publicado pelo GitHub, troca os arquivos e **reabre sozinho** (leva cerca de meio minuto);
+3. **Depois** dispensa o aviso daquela versão.
+
+Se algo falhar (download, arquivo corrompido, troca de arquivos), a versão atual é mantida. Pelo botão **⚙** do painel ou pelo menu da faixa (clique direito) você pode **procurar atualizações** na hora; no menu também dá para **desligar a verificação automática**. Suas configurações e o histórico não são tocados.
+
+A atualização com um clique funciona no app empacotado e instalado em uma pasta onde você pode gravar (como `%LOCALAPPDATA%ProgramsLimitBar` ou a pasta onde extraiu o zip). Em outros casos, o botão abre a página da Release para você baixar manualmente.
 
 ## Limitações
 
@@ -102,6 +116,7 @@ providers.js   leitura dos dados do Claude e do Codex
 index.html     painel (anéis, minigráficos, modo compacto)
 dock.html      faixa sobre a barra de tarefas
 preload.js     ponte segura entre a interface e o processo principal
+updater.js     atualização automática (consulta, download, verificação, troca de arquivos)
 instalar.ps1   instala como programa (exe + atalhos)
 build/         ícone e script de empacotamento
 ```

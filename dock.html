@@ -21,11 +21,13 @@
   .pill { display: flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
   .pill svg { width: 15px; height: 15px; }
   .sep { color: #a1a1aa; font-weight: 400; }
+  #up { color: #facc15; font-size: 15px; animation: bob 1.6s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-2px); } }
   .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 3px; }
 </style>
 </head>
 <body>
-<div id="bar"><span id="grip" title="Arrastar">⋮⋮</span><span id="v" title="Abrir detalhes"></span></div>
+<div id="bar"><span id="grip" title="Arrastar">⋮⋮</span><span id="up" title="Atualização disponível" style="display:none">⬆</span><span id="v" title="Abrir detalhes"></span></div>
 <script>
 const LOGO = {
   claude: `<svg viewBox="0 0 24 24"><g stroke="#e8845f" stroke-width="2.6" stroke-linecap="round"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></g></svg>`,
@@ -46,6 +48,10 @@ window.api.onData((d) => {
   if (html === lastHtml) return; // nada mudou: não mexe no DOM nem na janela (evita piscar)
   lastHtml = html;
   document.getElementById('v').innerHTML = html;
+  window.api.dockResize(document.getElementById('bar').offsetWidth + 2);
+});
+window.api.onUpdate((u) => {
+  document.getElementById('up').style.display = u.state === 'available' || u.state === 'downloading' ? '' : 'none';
   window.api.dockResize(document.getElementById('bar').offsetWidth + 2);
 });
 document.getElementById('v').onclick = () => window.api.toggleMain();

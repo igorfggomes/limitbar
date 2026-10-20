@@ -1,7 +1,8 @@
-const { app, BrowserWindow, Menu, Notification, systemPreferences, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, Menu, Notification, shell, systemPreferences, ipcMain, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const providers = require('./providers');
+const updater = require('./updater');
 
 const REFRESH_MS = 60 * 1000;
 const HISTORY_KEEP_MS = 7 * 86400e3;
@@ -13,7 +14,8 @@ const DOCK_DEFAULT_OFFSET = 340; // distância da borda direita da tela (área d
 const FLYOUT_MARGIN = 8;
 
 let win, dock, last = null, history = [], hover = true, blurHiddenAt = 0;
-let settings = { compact: true, dockX: null, pinned: false };
+let settings = { compact: true, dockX: null, pinned: false, autoUpdate: true, skipVersion: null, closeToTray: true };
+let update = { state: 'none' }, updateInfo = null;
 const timers = [];
 const alerted = {}; // "serviço/janela" -> maior nível já avisado nesta janela
 
@@ -24,6 +26,8 @@ const writeJson = (n, v) => { try { fs.writeFileSync(file(n), JSON.stringify(v))
 const saveSettings = () => writeJson('window.json', settings);
 
 app.setAppUserModelId('LimitBar'); // nome nas notificações do Windows
+
+if (process.env.LIMITBAR_USER_DATA) app.setPath('userData', process.env.LIMITBAR_USER_DATA); // só para testes
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
@@ -125,7 +129,7 @@ function createDock() {
   });
   dock.setAlwaysOnTop(true, 'screen-saver');
   dock.loadFile('dock.html');
-  dock.webContents.on('did-finish-load', () => last && dock.webContents.send('data', last));
+  dock.webContents.on('did-finish-load', () => { dock.webContents.send('update', update); if (last) dock.webContents.send('data', last); });
   dock.on('moved', () => { // só desliza na horizontal, preso à altura da barra
     const [x] = dock.getPosition();
     dock.setPosition(x, dockBaseY());
@@ -150,9 +154,71 @@ function watchTaskbar() {
   }, 100));
 }
 
+function sendSettings() {
+  if (alive(win)) win.webContents.send('settings', { compact: settings.compact, closeToTray: settings.closeToTray, version: app.getVersion() });
+}
+
 function setCompact(v) {
   settings.compact = v; saveSettings();
-  if (alive(win)) win.webContents.send('settings', { compact: v });
+  sendSettings();
+}
+
+function setCloseToTray(v) {
+  settings.closeToTray = !!v; saveSettings();
+  sendSettings();
+}
+
+// ---------- atualização automática ----------
+const UPDATE_CHECK_MS = 6 * 3600e3;
+function setUpdate(next) {
+  update = next;
+  [win, dock].forEach((w) => alive(w) && w.webContents.send('update', update));
+}
+
+async function checkUpdates(manual = false) {
+  if (update.state === 'downloading' || update.state === 'installing') return;
+  if (manual) setUpdate({ state: 'checking' });
+  try {
+    const info = await updater.check();
+    if (!info) {
+      if (manual) {
+        setUpdate({ state: 'uptodate' });
+        setTimeout(() => update.state === 'uptodate' && setUpdate({ state: 'none' }), 6000);
+      }
+      return;
+    }
+    if (!manual && settings.skipVersion === info.version) return; // você dispensou esta versão
+    updateInfo = info;
+    const novo = update.version !== info.version;
+    setUpdate({ state: 'available', version: info.version, canInstall: updater.canSelfUpdate() && !!info.assetUrl });
+    if (novo) new Notification({ title: `LimitBar ${info.version} disponível`, body: 'Abra o painel para atualizar com um clique.' }).show();
+    if (process.env.LIMITBAR_AUTO_APPLY) installUpdate(); // só para testes
+  } catch (e) {
+    if (manual) setUpdate({ state: 'error', message: 'Não foi possível verificar: ' + e.message });
+  }
+}
+
+async function installUpdate() {
+  if (!updateInfo || update.state === 'downloading' || update.state === 'installing') return;
+  const base = { version: updateInfo.version, canInstall: true };
+  if (!(updater.canSelfUpdate() && updateInfo.assetUrl)) { shell.openExternal(updateInfo.page); return; } // sem permissão: abre a página
+  try {
+    let pct = -1;
+    setUpdate({ ...base, state: 'downloading', progress: 0 });
+    const zip = await updater.download(updateInfo, (p) => {
+      if (Math.round(p * 100) !== pct) { pct = Math.round(p * 100); setUpdate({ ...base, state: 'downloading', progress: p }); }
+    });
+    setUpdate({ ...base, state: 'installing' });
+    updater.apply(zip);
+    setTimeout(() => app.quit(), 800); // o script espera o app fechar, troca os arquivos e reabre
+  } catch (e) {
+    setUpdate({ ...base, state: 'error', message: e.message });
+  }
+}
+
+function dismissUpdate() {
+  if (update.version) { settings.skipVersion = update.version; saveSettings(); }
+  setUpdate({ state: 'none' });
 }
 
 // menu de contexto (clique direito na faixa)
@@ -160,10 +226,18 @@ function showMenu() {
   Menu.buildFromTemplate([
     { label: 'Atualizar agora', click: refresh },
     { label: 'Barras (modo compacto)', type: 'checkbox', checked: settings.compact, click: (i) => setCompact(i.checked) },
+    { label: 'Minimizar ao fechar (✕ só esconde o painel)', type: 'checkbox', checked: settings.closeToTray, click: (i) => setCloseToTray(i.checked) },
     { label: 'Manter aberto ao clicar fora', type: 'checkbox', checked: settings.pinned,
       click: (i) => { settings.pinned = i.checked; saveSettings(); } },
     { label: 'Iniciar com o Windows', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin,
       click: (i) => app.setLoginItemSettings({ openAtLogin: i.checked }) },
+    { type: 'separator' },
+    { label: `LimitBar ${app.getVersion()}`, enabled: false },
+    update.state === 'available'
+      ? { label: `Atualizar para ${update.version}`, click: installUpdate }
+      : { label: 'Procurar atualizações', click: () => checkUpdates(true) },
+    { label: 'Verificar atualizações automaticamente', type: 'checkbox', checked: settings.autoUpdate,
+      click: (i) => { settings.autoUpdate = i.checked; saveSettings(); } },
     { type: 'separator' },
     { label: 'Sair', click: () => app.quit() },
   ]).popup({ window: dock });
@@ -182,7 +256,8 @@ app.whenReady().then(() => {
   win.setAlwaysOnTop(true, 'screen-saver');
   win.loadFile('index.html');
   win.webContents.on('did-finish-load', () => {
-    win.webContents.send('settings', { compact: settings.compact });
+    sendSettings();
+    win.webContents.send('update', update);
     if (last) win.webContents.send('data', last);
   });
   // perdeu o foco (clique fora) -> fecha como um flyout, a menos que esteja fixado
@@ -195,11 +270,15 @@ app.whenReady().then(() => {
   createDock();
 
   ipcMain.on('refresh', refresh);
-  ipcMain.on('hide', () => win.hide());
-  ipcMain.on('quit', () => app.quit());
+  // ✕ do painel: esconde (a faixa continua rodando) ou encerra o app, conforme a configuração
+  ipcMain.on('close-panel', () => { if (settings.closeToTray) win.hide(); else app.quit(); });
+  ipcMain.on('set-close-to-tray', (_e, v) => setCloseToTray(v));
   ipcMain.on('toggle-compact', () => setCompact(!settings.compact));
   ipcMain.on('toggle-main', toggle);
   ipcMain.on('dock-menu', showMenu);
+  ipcMain.on('update-install', installUpdate);
+  ipcMain.on('update-dismiss', dismissUpdate);
+  ipcMain.on('update-check', () => checkUpdates(true));
   ipcMain.on('resize', (_e, h) => {
     if (!alive(win)) return;
     // janelas não redimensionáveis ignoram pedidos para encolher no Windows: libera só durante a troca
@@ -221,6 +300,7 @@ app.whenReady().then(() => {
     setTimeout(async () => {
       // o acrílico do Windows não aparece em capturas: usa um fundo escuro equivalente
       await win.webContents.executeJavaScript("document.documentElement.style.background='#1f2026'; document.body.classList.remove('idle')");
+      if (process.env.WIDGET_OPEN_SETTINGS) await win.webContents.executeJavaScript("document.getElementById('g').click()");
       await new Promise((r) => setTimeout(r, 500)); // espera o quadro novo ser pintado
       fs.writeFileSync(process.env.WIDGET_SHOT, (await win.webContents.capturePage()).toPNG());
       fs.writeFileSync(process.env.WIDGET_SHOT + '.dock.png', (await dock.webContents.capturePage()).toPNG());
@@ -237,6 +317,9 @@ app.whenReady().then(() => {
   timers.push(setInterval(refresh, REFRESH_MS));
   watchHover();
   watchTaskbar();
+  // verifica logo depois de abrir e a cada 6 horas (se não estiver desligado)
+  setTimeout(() => settings.autoUpdate && checkUpdates(), process.env.LIMITBAR_UPDATE_URL ? 3000 : 20000);
+  timers.push(setInterval(() => settings.autoUpdate && checkUpdates(), UPDATE_CHECK_MS));
 });
 
 app.on('second-instance', () => { if (alive(win)) openFlyout(); });
