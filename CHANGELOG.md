@@ -15,10 +15,12 @@ O fluxo de publicação usa a seção da versão deste arquivo como texto da Rel
 - Só dispara com a janela comprovadamente parada; leituras duvidosas (rede fora, valor guardado, erro) nunca disparam.
 - Espera depois de cada tentativa (crescente se falhar), no máximo 3 tentativas por janela parada e 8 por dia, uma tentativa por vez.
 - Os comandos rodam numa pasta temporária vazia e sem as chaves de API do ambiente, para a cobrança nunca sair da API em vez da assinatura.
+- Depois do disparo, remove a pasta de projeto vazia que o Claude Code cria para a pasta temporária (nunca apaga pasta com conteúdo).
 - Não aumenta o limite: só muda quando as janelas começam, e cada disparo gasta um pouco do limite semanal.
 
 ### Por trás
-- Testes de mutação para as travas da janela automática; 115 testes automáticos.
+- Testes de mutação para as travas e para a limpeza da janela automática; 119 testes automáticos.
+- Validada em uso real com Claude e Codex: custo medido de 0% a 1%; no Codex, o disparo criou a janela.
 
 ## 1.3.0 — 2026-10-20
 

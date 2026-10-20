@@ -113,7 +113,7 @@ As janelas de 5 horas só começam na primeira mensagem. Com **⚙ → Janela de
 
 Eles rodam numa pasta temporária vazia (nenhum projeto vira contexto) e com as variáveis de chave de API removidas do ambiente (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY` e semelhantes), para a cobrança nunca sair da API em vez da sua assinatura. No Codex a sessão é gravada de propósito: o LimitBar enxerga a janela pelos logs de sessão.
 
-**Teto de custo.** Depois de cada disparo, o LimitBar lê o uso de novo e mede quanto ele custou. Se passar do teto que você escolheu (1%, 2%, 3% ou 5%; padrão 2%), a função é **desligada para aquele serviço** e você recebe um aviso. Religar o serviço ou subir o teto tenta de novo. O 1% não pode ser garantido: o custo real depende do plano e é mostrado nas configurações depois de cada disparo.
+**Teto de custo.** Depois de cada disparo, o LimitBar lê o uso de novo e mede quanto ele custou. Se passar do teto que você escolheu (1%, 2%, 3% ou 5%; padrão 2%), a função é **desligada para aquele serviço** e você recebe um aviso. Religar o serviço ou subir o teto tenta de novo. O 1% não pode ser garantido: o custo real depende do plano e é mostrado nas configurações depois de cada disparo. O uso é lido com resolução de 1 ponto percentual, e o custo medido inclui qualquer outro uso seu no mesmo instante (sessões abertas do Claude Code ou do Codex), então pode sair um pouco inflado.
 
 **Travas contra repetição.** Como um erro aqui gastaria limite de verdade:
 
@@ -121,6 +121,10 @@ Eles rodam numa pasta temporária vazia (nenhum projeto vira contexto) e com as 
 - espera um minuto depois de abrir o app e 12 minutos depois de um disparo; se falhar, a espera cresce (10, 20, 40, 60 e 120 minutos);
 - no máximo 3 tentativas por janela parada e 8 por dia, por serviço; ao desistir, avisa;
 - uma tentativa por vez.
+
+**Limpeza.** O Claude Code cria uma pasta de projeto vazia para cada pasta de trabalho; como a do disparo é descartável, o LimitBar remove a pasta de projeto dela (e só ela, e só se estiver vazia). Nenhuma conversa é salva.
+
+**Como foi validado.** Com os dois serviços, em uso real: os dois comandos rodam e terminam com sucesso (3 a 5 segundos) e o custo medido ficou entre 0% e 1%. No Codex, o disparo criou uma janela nova (visível nos logs de sessão, e disparos seguintes não a estendem). No Claude, a janela já estava ativa nos testes, então o início de uma janela *parada* não foi observado isoladamente; a decisão de quando disparar é coberta pelos testes automáticos.
 
 **Testar agora** envia uma mensagem a cada serviço marcado (depois de pedir confirmação) e mostra o custo medido, sem contar nas travas e sem desligar nada. O computador precisa estar ligado e o app aberto; quem usa chave de API (e não assinatura) não deve ligar a função.
 

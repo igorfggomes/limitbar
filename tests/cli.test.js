@@ -49,7 +49,7 @@ function fakeSpawn(behavior) {
     const child = new EventEmitter();
     child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.pid = 4321;
     calls.push({ file, args, opts, dirExisted: opts && opts.cwd ? fs.existsSync(opts.cwd) : null });
-    if (file !== 'taskkill') setImmediate(() => behavior(child));
+    if (file !== 'taskkill') setImmediate(() => behavior(child, opts));
     return child;
   };
   fn.calls = calls;
@@ -118,4 +118,57 @@ test('run: serviço desconhecido falha sem rodar nada', async () => {
   const r = await cli.run('gemini', { spawnFn, env: ENV });
   assert.equal(r.ok, false);
   assert.equal(spawnFn.calls.length, 0);
+});
+
+// ------------------------------------------------------------------ limpeza da pasta de projeto do Claude Code
+const projectDirFor = (base, cwd) => path.join(base, 'projects', cwd.replace(/[^a-zA-Z0-9]/g, '-'));
+
+test('run (claude): remove a pasta de projeto vazia que o Claude Code criou para a pasta temporária', async () => {
+  const base = tmpDir('limitbar-cfg-');
+  let created;
+  try {
+    const spawnFn = fakeSpawn((c, opts) => { created = projectDirFor(base, opts.cwd); fs.mkdirSync(created, { recursive: true }); c.emit('close', 0); });
+    const r = await cli.run('claude', { spawnFn, env: { ...ENV, CLAUDE_CONFIG_DIR: base } });
+    assert.equal(r.ok, true);
+    assert.ok(created.includes('limitbar-ka-'));
+    assert.equal(fs.existsSync(created), false, 'pasta de projeto vazia removida');
+    assert.equal(fs.existsSync(path.join(base, 'projects')), true, 'a pasta "projects" em si fica');
+  } finally { rmDir(base); }
+});
+
+test('run (claude): se a pasta de projeto tiver conteúdo, ela NÃO é apagada', async () => {
+  const base = tmpDir('limitbar-cfg-');
+  let created;
+  try {
+    const spawnFn = fakeSpawn((c, opts) => {
+      created = projectDirFor(base, opts.cwd); fs.mkdirSync(created, { recursive: true });
+      fs.writeFileSync(path.join(created, 'sessao.jsonl'), '{}');
+      c.emit('close', 0);
+    });
+    await cli.run('claude', { spawnFn, env: { ...ENV, CLAUDE_CONFIG_DIR: base } });
+    assert.equal(fs.existsSync(path.join(created, 'sessao.jsonl')), true);
+  } finally { rmDir(base); }
+});
+
+test('run (claude): projetos de outras pastas nunca são tocados', async () => {
+  const base = tmpDir('limitbar-cfg-');
+  try {
+    const outro = path.join(base, 'projects', 'C--Users-igorf-meu-projeto');
+    fs.mkdirSync(outro, { recursive: true });
+    const spawnFn = fakeSpawn((c) => c.emit('close', 0));
+    await cli.run('claude', { spawnFn, env: { ...ENV, CLAUDE_CONFIG_DIR: base } });
+    assert.equal(fs.existsSync(outro), true);
+  } finally { rmDir(base); }
+});
+
+test('run (codex): não mexe em nenhuma pasta de projeto do Claude', async () => {
+  const base = tmpDir('limitbar-cfg-');
+  try {
+    // uma pasta de projeto com o nome EXATO da pasta de trabalho: só o Claude teria direito de limpá-la
+    let dir;
+    const spawnFn = fakeSpawn((c, opts) => { dir = projectDirFor(base, opts.cwd); fs.mkdirSync(dir, { recursive: true }); c.emit('close', 0); });
+    const r = await cli.run('codex', { spawnFn, env: { ...ENV, CLAUDE_CONFIG_DIR: base } });
+    assert.equal(r.ok, true);
+    assert.equal(fs.existsSync(dir), true, 'o Codex não apaga pastas de projeto do Claude');
+  } finally { rmDir(base); }
 });
