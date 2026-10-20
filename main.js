@@ -3,19 +3,22 @@ const fs = require('fs');
 const path = require('path');
 const providers = require('./providers');
 const updater = require('./updater');
+const alertsLib = require('./lib/alerts');
 
 const REFRESH_MS = 60 * 1000;
 const WIDTH = 340;
-const ALERT_LEVELS = [80, 95];
 const DOCK_H = 36;
 const DOCK_DEFAULT_OFFSET = 340; // distância da borda direita da tela (área da bandeja/relógio)
 const FLYOUT_MARGIN = 8;
 
 let win, dock, last = null, hover = true, blurHiddenAt = 0;
-let settings = { dockX: null, pinned: false, autoUpdate: true, skipVersion: null, closeToTray: true };
+let settings = {
+  dockX: null, pinned: false, autoUpdate: true, skipVersion: null, closeToTray: true,
+  autoRefreshToken: true, onboarded: false, alerts: alertsLib.normalizeConfig({}),
+};
 let update = { state: 'none' }, updateInfo = null, lastCheckAt = null;
 const timers = [];
-const alerted = {}; // "serviço/janela" -> maior nível já avisado nesta janela
+const alerts = alertsLib.create();
 
 const alive = (o) => !!o && !o.isDestroyed();
 const file = (n) => path.join(app.getPath('userData'), n);
@@ -29,28 +32,20 @@ if (process.env.LIMITBAR_USER_DATA) app.setPath('userData', process.env.LIMITBAR
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
-// ---------- alertas de 80% e 95% ----------
-function checkAlerts(name, p) {
-  if (!p.ok) return;
-  p.windows.forEach((w) => {
-    const key = `${name}/${w.label}`;
-    const level = ALERT_LEVELS.filter((l) => w.percent >= l).pop() || 0;
-    if (level > (alerted[key] || 0)) {
-      new Notification({ title: `${name} — ${w.label}`, body: `Você usou ${Math.round(w.percent)}% do limite.` }).show();
-    }
-    alerted[key] = level; // volta a 0 quando a janela reseta, então o aviso vale de novo
-  });
-}
-
 function accent() {
   try { return '#' + systemPreferences.getAccentColor().slice(0, 6); } catch { return '#d97757'; }
 }
 
 async function refresh() {
-  const [claude, codex] = await Promise.all([providers.claude(), providers.codex()]);
+  let claude, codex;
+  if (process.env.LIMITBAR_FAKE_DATA) { // só para capturas de tela e testes manuais
+    try { ({ claude, codex } = JSON.parse(fs.readFileSync(process.env.LIMITBAR_FAKE_DATA, 'utf8'))); } catch { /* usa os dados reais */ }
+  }
+  if (!claude) [claude, codex] = await Promise.all([providers.claude(), providers.codex()]);
   last = { claude, codex, updatedAt: Date.now(), accent: accent() };
-  checkAlerts('Claude', claude);
-  checkAlerts('Codex', codex);
+  for (const [key, name, reading] of [['claude', 'Claude', claude], ['codex', 'Codex', codex]]) {
+    alerts.evaluate(key, name, reading, settings.alerts).forEach((n) => new Notification({ title: n.title, body: n.body }).show());
+  }
   [win, dock].forEach((w) => alive(w) && w.webContents.send('data', last));
 }
 
@@ -140,7 +135,37 @@ function watchTaskbar() {
 }
 
 function sendSettings() {
-  if (alive(win)) win.webContents.send('settings', { closeToTray: settings.closeToTray, autoUpdate: settings.autoUpdate, lastCheck: lastCheckAt, version: app.getVersion() });
+  if (!alive(win)) return;
+  win.webContents.send('settings', {
+    closeToTray: settings.closeToTray, autoUpdate: settings.autoUpdate, autoRefreshToken: settings.autoRefreshToken,
+    alerts: settings.alerts, onboarded: !!settings.onboarded, openAtLogin: app.getLoginItemSettings().openAtLogin,
+    lastCheck: lastCheckAt, version: app.getVersion(),
+  });
+}
+
+function setAlerts(patch) {
+  const before = settings.alerts;
+  settings.alerts = alertsLib.normalizeConfig({ ...before, ...patch, services: { ...before.services, ...((patch && patch.services) || {}) } });
+  // mudar os níveis ou ligar/desligar não pode disparar aviso do que já estava acima
+  if (JSON.stringify(before.levels) !== JSON.stringify(settings.alerts.levels) || before.enabled !== settings.alerts.enabled) alerts.reseed();
+  saveSettings(); sendSettings();
+}
+
+function setAutoRefreshToken(v) {
+  settings.autoRefreshToken = !!v;
+  providers.configure({ autoRefresh: settings.autoRefreshToken });
+  saveSettings(); sendSettings();
+}
+
+function setAutostart(v) {
+  app.setLoginItemSettings({ openAtLogin: !!v });
+  sendSettings();
+}
+
+function finishOnboarding(opts) {
+  if (opts && opts.autostart) app.setLoginItemSettings({ openAtLogin: true });
+  settings.onboarded = true;
+  saveSettings(); sendSettings();
 }
 
 function setAutoUpdate(v) {
@@ -215,7 +240,7 @@ function showMenu() {
     { label: 'Manter aberto ao clicar fora', type: 'checkbox', checked: settings.pinned,
       click: (i) => { settings.pinned = i.checked; saveSettings(); } },
     { label: 'Iniciar com o Windows', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin,
-      click: (i) => app.setLoginItemSettings({ openAtLogin: i.checked }) },
+      click: (i) => setAutostart(i.checked) },
     { type: 'separator' },
     { label: `LimitBar ${app.getVersion()}`, enabled: false },
     update.state === 'available'
@@ -229,7 +254,12 @@ function showMenu() {
 }
 
 app.whenReady().then(() => {
-  settings = { ...settings, ...readJson('window.json', {}) };
+  const stored = readJson('window.json', null);
+  settings = { ...settings, ...(stored || {}) };
+  settings.alerts = alertsLib.normalizeConfig(settings.alerts);
+  // quem já usava o app antes das boas-vindas existirem não precisa vê-las
+  if (stored && stored.onboarded === undefined) settings.onboarded = true;
+  providers.configure({ autoRefresh: settings.autoRefreshToken !== false });
   try { fs.unlinkSync(file('history.json')); } catch { /* arquivo de uma versão antiga; não é mais usado */ }
 
   win = new BrowserWindow({
@@ -244,6 +274,7 @@ app.whenReady().then(() => {
     sendSettings();
     win.webContents.send('update', update);
     if (last) win.webContents.send('data', last);
+    if (!settings.onboarded) setTimeout(openFlyout, 600); // primeira abertura: mostra as boas-vindas
   });
   // perdeu o foco (clique fora) -> fecha como um flyout, a menos que esteja fixado
   win.on('blur', () => {
@@ -259,6 +290,10 @@ app.whenReady().then(() => {
   ipcMain.on('close-panel', () => { if (settings.closeToTray) win.hide(); else app.quit(); });
   ipcMain.on('set-close-to-tray', (_e, v) => setCloseToTray(v));
   ipcMain.on('set-auto-update', (_e, v) => setAutoUpdate(v));
+  ipcMain.on('set-alerts', (_e, patch) => setAlerts(patch && typeof patch === 'object' ? patch : {}));
+  ipcMain.on('set-auto-refresh-token', (_e, v) => setAutoRefreshToken(v));
+  ipcMain.on('set-autostart', (_e, v) => setAutostart(v));
+  ipcMain.on('onboard-done', (_e, opts) => finishOnboarding(opts));
   ipcMain.on('toggle-main', toggle);
   ipcMain.on('dock-menu', showMenu);
   ipcMain.on('update-install', installUpdate);

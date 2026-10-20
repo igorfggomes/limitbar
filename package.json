@@ -1,6 +1,6 @@
 {
   "name": "usage-widget",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Limites de 5h e semanal do Claude e do Codex na barra de tarefas do Windows",
   "license": "MIT",
   "repository": {
@@ -10,6 +10,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "test": "node scripts/test.js",
     "package": "node build/package.js",
     "install_app": "powershell -ExecutionPolicy Bypass -File instalar.ps1"
   },

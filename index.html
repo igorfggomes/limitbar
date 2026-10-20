@@ -78,6 +78,31 @@
   .act.pri { background: var(--accent); border-color: transparent; color: #fff; }
   .act:disabled { opacity: .5; cursor: default; }
 
+  /* ----- aviso de esgotamento e erros claros ----- */
+  .risk { margin-top: 7px; font-size: 11.5px; font-weight: 600; color: var(--warn); }
+  .risk.bad { color: var(--bad); }
+  .risk[hidden] { display: none; }
+  .errcard b { display: block; margin-bottom: 2px; color: var(--fg); font-size: 13px; }
+
+  /* ----- boas-vindas (primeira abertura) ----- */
+  .welcome { -webkit-app-region: no-drag; margin-bottom: 14px; padding: 12px; border-radius: 12px;
+             background: color-mix(in srgb, var(--accent) 14%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+  .welcome[hidden], body.cfg .welcome { display: none; }
+  .welcome > b { display: block; font-size: 14px; margin-bottom: 4px; }
+  .welcome p { color: var(--mut); font-size: 12px; line-height: 1.4; margin-bottom: 10px; }
+  .welcome .act { width: 100%; margin-top: 10px; }
+
+  /* ----- seleção de níveis e serviços ----- */
+  .opt.col { display: block; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+  .chip { width: auto; height: 26px; padding: 0 11px; border-radius: 13px; border: 1px solid var(--line); background: transparent;
+          color: var(--mut); font-size: 12px; font-weight: 600; }
+  .chip:hover { color: var(--fg); background: var(--track); }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: transparent; color: #fff; }
+  .grp.off { opacity: .4; pointer-events: none; }
+  .grp { margin-top: 12px; }
+  .grp > .opt + .opt { margin-top: 12px; }
+
   /* ----- aviso de atualização ----- */
   .upd { -webkit-app-region: no-drag; margin-top: 14px; padding: 9px 11px; border-radius: 10px; font-size: 12px;
          background: color-mix(in srgb, var(--accent) 16%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); }
@@ -106,6 +131,13 @@
     </div>
   </header>
 
+  <div class="welcome" id="welcome" hidden>
+    <b>Bem-vindo ao LimitBar</b>
+    <p>A faixa na barra de tarefas mostra seus limites do Claude e do Codex. Clique nela para abrir este painel; o ⚙ abre as configurações.</p>
+    <label class="opt"><span><b>Abrir ao ligar o computador</b></span><input type="checkbox" id="wl-auto" class="sw" checked></label>
+    <button class="act pri" id="wl-ok">Entendi</button>
+  </div>
+
   <div class="bars" id="bars"></div>
 
   <div class="cfgpage" id="set">
@@ -114,6 +146,32 @@
       <label class="opt">
         <span><b>Minimizar ao fechar</b></span>
         <input type="checkbox" id="ctt" class="sw">
+      </label>
+      <label class="opt">
+        <span><b>Iniciar com o Windows</b></span>
+        <input type="checkbox" id="st" class="sw">
+      </label>
+    </section>
+    <section class="ps">
+      <h3>Alertas</h3>
+      <label class="opt">
+        <span><b>Alertas de uso</b></span>
+        <input type="checkbox" id="al-on" class="sw">
+      </label>
+      <div class="grp" id="al-opts">
+        <div class="opt col"><b>Avisar em</b><div class="chips" id="al-levels"></div></div>
+        <div class="opt col"><b>Avisar para</b><div class="chips" id="al-svc"></div></div>
+        <label class="opt">
+          <span><b>Avisar quando resetar</b></span>
+          <input type="checkbox" id="al-reset" class="sw">
+        </label>
+      </div>
+    </section>
+    <section class="ps">
+      <h3>Claude</h3>
+      <label class="opt">
+        <span><b>Renovar o login sozinho</b><small>Se o token expirar, o LimitBar renova.</small></span>
+        <input type="checkbox" id="rt" class="sw">
       </label>
     </section>
     <section class="ps">
@@ -133,6 +191,7 @@
   <footer id="foot"></footer>
 </div>
 
+<script src="lib/pace.js"></script>
 <script>
 const SVC = {
   claude: { name: 'Claude', color: 'var(--claude)',
@@ -163,12 +222,7 @@ function clock(ms) {
   const same = d.toDateString() === new Date().toDateString();
   return same ? `hoje às ${t}` : `${d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })} às ${t}`;
 }
-// ritmo: quanto da janela já passou (onde você "deveria" estar) e a projeção de uso no reset
-function pace(w) {
-  if (!w.resetsAt || !w.windowMs) return null;
-  const frac = Math.min(1, Math.max(0, 1 - (w.resetsAt - Date.now()) / w.windowMs));
-  return { frac, expected: frac * 100, projected: frac > 0.03 ? Math.min(999, w.percent / frac) : null };
-}
+const pace = (w) => Pace.pace(w);
 function tooltip(svcName, w) {
   const p = pace(w), l = [`${svcName} · ${w.label}`, `Usado: ${Math.round(w.percent)}%`];
   l.push(w.resetsAt ? `Reseta ${clock(w.resetsAt)}` : 'Janela sem uso desde o último reset');
@@ -176,7 +230,17 @@ function tooltip(svcName, w) {
     l.push(`Ritmo esperado agora: ${Math.round(p.expected)}%`);
     if (p.projected != null) l.push(`Projeção no reset: ${Math.round(p.projected)}%` + (p.projected > 100 ? ' ⚠ estoura o limite' : ''));
   }
+  const r = riskOf(w);
+  if (r) l.push(r.text);
   return l.join('\n');
+}
+
+// Quando o limite acaba, se continuar no ritmo atual (só aparece quando há risco de acabar antes do reset)
+function riskOf(w) {
+  const x = Pace.exhaustion(w);
+  if (!x) return null;
+  if (x.reached) return { bad: true, text: x.at ? `Limite atingido — volta ${clock(x.at)}` : 'Limite atingido' };
+  return { bad: false, text: `No ritmo atual, o limite acaba ${clock(x.at)}` };
 }
 
 // ---------- barras ----------
@@ -197,28 +261,33 @@ function renderBars() {
       const s = SVC[r.k], el = document.createElement('div');
       if (r.err) {
         el.className = 'errcard';
-        el.textContent = `${s.name}: ${r.err}`;
+        const name = document.createElement('b');
+        name.textContent = s.name;
+        el.append(name, r.err); // texto puro: a mensagem diz o que fazer
         box.appendChild(el); barRefs.push(null); return;
       }
       el.className = 'brow';
       el.innerHTML = `<div class="top">${s.logo}<span class="nm">${s.name} · ${r.w.label}</span>
         <span class="rs num"></span><span class="pc num">0%</span></div>
-        <div class="track"><div class="fill"></div><i class="mark"></i></div>`;
+        <div class="track"><div class="fill"></div><i class="mark"></i></div>
+        <div class="risk" hidden></div>`;
       box.appendChild(el);
       barRefs.push({ el, fill: el.querySelector('.fill'), mark: el.querySelector('.mark'),
-        rs: el.querySelector('.rs'), pc: el.querySelector('.pc') });
+        rs: el.querySelector('.rs'), pc: el.querySelector('.pc'), risk: el.querySelector('.risk') });
     });
   }
   rows.forEach((r, n) => {
     const b = barRefs[n];
     if (!b) return;
-    const pct = Math.max(0, Math.min(100, r.w.percent)), s = SVC[r.k], pc = pace(r.w);
+    const pct = Math.max(0, Math.min(100, r.w.percent)), s = SVC[r.k], pc = pace(r.w), risk = riskOf(r.w);
     requestAnimationFrame(() => { b.fill.style.width = pct + '%'; });
     b.fill.style.background = statusColor(pct, s.color);
     b.pc.textContent = Math.round(pct) + '%';
     b.rs.textContent = until(r.w.resetsAt);
     b.mark.style.display = pc ? '' : 'none';
     if (pc) b.mark.style.left = pc.frac * 100 + '%';
+    b.risk.hidden = !risk;
+    if (risk) { b.risk.textContent = (risk.bad ? '' : '⚠ ') + risk.text; b.risk.classList.toggle('bad', risk.bad); }
     b.el.title = tooltip(s.name, r.w);
     b.el.classList.toggle('hot', pct >= 90);
   });
@@ -298,9 +367,24 @@ window.api.onData((d) => {
   if (d.accent) document.documentElement.style.setProperty('--accent', d.accent);
   render();
 });
+let cfg = null; // últimas configurações recebidas
+const LEVEL_CHOICES = [50, 70, 80, 90, 95];
+function renderChips() {
+  if (!cfg) return;
+  $('al-levels').innerHTML = LEVEL_CHOICES.map((n) => `<button class="chip" data-v="${n}" aria-pressed="${cfg.alerts.levels.includes(n)}">${n}%</button>`).join('');
+  $('al-svc').innerHTML = KEYS.map((k) => `<button class="chip" data-k="${k}" aria-pressed="${cfg.alerts.services[k] !== false}">${SVC[k].name}</button>`).join('');
+  $('al-opts').classList.toggle('off', !cfg.alerts.enabled);
+}
 window.api.onSettings((s) => {
+  cfg = s;
   $('ctt').checked = !!s.closeToTray;
+  $('st').checked = !!s.openAtLogin;
   $('aut').checked = s.autoUpdate !== false;
+  $('rt').checked = s.autoRefreshToken !== false;
+  $('al-on').checked = s.alerts.enabled;
+  $('al-reset').checked = s.alerts.onReset;
+  $('welcome').hidden = !!s.onboarded;
+  renderChips();
   if (s.version) $('ver').textContent = 'LimitBar ' + s.version;
   lastCheck = s.lastCheck || lastCheck;
   if (lastUpdate.state === 'none') renderUpdateStatus(lastUpdate);
@@ -314,6 +398,23 @@ $('g').onclick = () => setSettingsView(!document.body.classList.contains('cfg'))
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setSettingsView(false); });
 $('ctt').onchange = (e) => window.api.setCloseToTray(e.target.checked);
 $('aut').onchange = (e) => window.api.setAutoUpdate(e.target.checked);
+$('st').onchange = (e) => window.api.setAutostart(e.target.checked);
+$('rt').onchange = (e) => window.api.setAutoRefreshToken(e.target.checked);
+$('al-on').onchange = (e) => window.api.setAlerts({ enabled: e.target.checked });
+$('al-reset').onchange = (e) => window.api.setAlerts({ onReset: e.target.checked });
+$('al-levels').onclick = (e) => {
+  const b = e.target.closest('.chip');
+  if (!b || !cfg) return;
+  const v = Number(b.dataset.v), cur = cfg.alerts.levels;
+  window.api.setAlerts({ levels: cur.includes(v) ? cur.filter((n) => n !== v) : [...cur, v] });
+};
+$('al-svc').onclick = (e) => {
+  const b = e.target.closest('.chip');
+  if (!b || !cfg) return;
+  const k = b.dataset.k;
+  window.api.setAlerts({ services: { [k]: cfg.alerts.services[k] === false } });
+};
+$('wl-ok').onclick = () => window.api.onboardDone({ autostart: $('wl-auto').checked });
 setInterval(() => { if (data) render(); }, 30000);
 </script>
 </body>

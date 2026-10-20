@@ -12,6 +12,6 @@ packager({
   overwrite: true,
   prune: true,
   asar: true,
-  ignore: [/^\/docs/, /^\/dist/, /^\/\.git/, /^\/build\/(make-icon\.js|icon\.html|package\.js)/, /^\/iniciar\.vbs/, /^\/instalar\.ps1/],
+  ignore: [/^\/docs/, /^\/dist/, /^\/\.git/, /^\/build\/(make-icon\.js|icon\.html|package\.js)/, /^\/iniciar\.vbs/, /^\/instalar\.ps1/, /^\/tests/, /^\/scripts/, /^\/\.github/, /^\/CHANGELOG\.md/],
   win32metadata: { ProductName: 'LimitBar', FileDescription: 'Limites do Claude e do Codex na barra de tarefas' },
 }).then((p) => console.log('pronto:', p.join(', '))).catch((e) => { console.error(e); process.exit(1); });

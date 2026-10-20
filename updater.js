@@ -11,19 +11,24 @@ const REPO = 'igorfggomes/limitbar';
 // LIMITBAR_UPDATE_URL existe só para testar o fluxo contra um servidor local
 const API = process.env.LIMITBAR_UPDATE_URL || `https://api.github.com/repos/${REPO}/releases/latest`;
 const TRUSTED_PREFIX = process.env.LIMITBAR_UPDATE_URL ? null : `https://github.com/${REPO}/releases/download/`;
+const { isNewer } = require('./lib/version');
 const UA = () => `LimitBar/${app.getVersion()}`;
-
-const parts = (v) => String(v).replace(/^v/i, '').split('-')[0].split('.').map((n) => parseInt(n, 10) || 0);
-function isNewer(a, b) {
-  const x = parts(a), y = parts(b);
-  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
-  return false;
-}
 
 // só dá para trocar os arquivos se for o app empacotado e a pasta for gravável (não em Arquivos de Programas)
 function canSelfUpdate() {
   if (!app.isPackaged && !process.env.LIMITBAR_FORCE_SELF_UPDATE) return false;
   try { fs.accessSync(path.dirname(process.execPath), fs.constants.W_OK); return true; } catch { return false; }
+}
+
+async function expectedHash(asset, assets) {
+  if (/^sha256:[0-9a-f]{64}$/i.test(asset.digest || '')) return asset.digest.slice(7).toLowerCase();
+  const side = (assets || []).find((a) => a.name === asset.name + '.sha256');
+  if (!side) return null;
+  try {
+    const res = await fetch(side.browser_download_url, { headers: { 'User-Agent': UA() }, signal: AbortSignal.timeout(15000) });
+    const m = res.ok && /\b[0-9a-f]{64}\b/i.exec(await res.text());
+    return m ? m[0].toLowerCase() : null;
+  } catch { return null; }
 }
 
 // devolve null se já está na versão mais recente
@@ -41,7 +46,7 @@ async function check() {
     version, page: rel.html_url, notes: rel.body || '',
     assetUrl: asset ? asset.browser_download_url : null,
     size: asset ? asset.size : 0,
-    sha256: asset && /^sha256:/.test(asset.digest || '') ? asset.digest.slice(7) : null,
+    sha256: asset ? await expectedHash(asset, rel.assets) : null,
   };
 }
 

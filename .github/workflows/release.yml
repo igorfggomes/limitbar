@@ -1,0 +1,65 @@
+name: Release
+
+# Criar uma tag vX.Y.Z publica a Release: empacota, gera o zip + SHA-256 e usa o CHANGELOG.md como notas.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Confere se a tag bate com a versão do package.json
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$ver" ]; then
+            echo "::error::A tag ($tag) não bate com a versão do package.json ($ver)"
+            exit 1
+          fi
+
+      - name: Testes
+        run: npm test
+
+      - name: Notas da versão (CHANGELOG.md)
+        shell: bash
+        run: node scripts/release-notes.js "$GITHUB_REF_NAME" > notes.md
+
+      - name: Empacota
+        run: npm run package
+
+      - name: Confere o conteúdo do pacote
+        run: node scripts/check-package.js
+
+      - name: Gera o zip e o SHA-256
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/LimitBar-win32-x64 -DestinationPath LimitBar-win32-x64.zip -CompressionLevel Optimal
+          $hash = (Get-FileHash LimitBar-win32-x64.zip -Algorithm SHA256).Hash.ToLower()
+          "$hash  LimitBar-win32-x64.zip" | Set-Content -Encoding ascii LimitBar-win32-x64.zip.sha256
+
+      - name: Publica a Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flags=""
+          case "$GITHUB_REF_NAME" in *-*) flags="--prerelease" ;; esac   # v1.4.0-beta.1 -> pré-lançamento
+          gh release create "$GITHUB_REF_NAME" \
+            LimitBar-win32-x64.zip LimitBar-win32-x64.zip.sha256 \
+            --title "LimitBar ${GITHUB_REF_NAME#v}" \
+            --notes-file notes.md \
+            $flags

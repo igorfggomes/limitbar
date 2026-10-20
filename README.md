@@ -24,9 +24,12 @@ Clique na faixa e o painel abre colado na barra:
 - **Barras de progresso** que mudam de cor: normal, amarelo a partir de 70% e vermelho a partir de 90%.
 - **Marcador de ritmo** em cada barra: mostra onde você *deveria* estar naquele ponto da janela. Passando o mouse, aparecem o horário do reset e a projeção de uso até lá.
 - Tema claro/escuro automático e fundo de vidro (acrílico) do Windows 11.
-- **Notificações** ao passar de 80% e de 95% de qualquer janela.
+- **Previsão de esgotamento**: quando você está acima do ritmo, a barra avisa "no ritmo atual, o limite acaba hoje às 14:32" (e, se já bateu 100%, quando volta).
+- **Alertas configuráveis** do Windows: escolha os níveis (50, 70, 80, 90, 95%), avise quando o limite **resetar** e silencie por serviço.
 - **Atualização com um clique**: o app avisa quando sai uma versão nova (um ⬆ na faixa e um aviso no painel) e atualiza sozinho.
-- **Iniciar com o Windows** pelo menu (clique direito na faixa).
+- **Renovação automática do login do Claude**: se o token expirar, o LimitBar renova sozinho (pode desligar nas configurações).
+- **Primeiro uso guiado**: boas-vindas na primeira abertura e mensagens que dizem o que fazer quando o Claude Code ou o Codex não estão instalados ou logados.
+- **Iniciar com o Windows** pelas configurações ou pelo menu (clique direito na faixa).
 
 ## Como funciona
 
@@ -37,7 +40,9 @@ LimitBar não usa nenhuma conta ou chave sua além do que as próprias ferrament
 | **Claude** | O token do Claude Code (`~/.claude/.credentials.json`) é usado para consultar o endpoint de uso que alimenta o comando `/usage`. |
 | **Codex** | Os logs de sessão em `~/.codex/sessions`, que registram `rate_limits` a cada resposta. Só atualiza depois que você usa o Codex. |
 
-O token do Claude é lido em memória, enviado apenas para `api.anthropic.com` e nunca é gravado nem registrado em log.
+O token do Claude é lido do arquivo de login do próprio Claude Code, enviado apenas à Anthropic (`api.anthropic.com` e, para renovar, `platform.claude.com`) e nunca é registrado em log nem copiado para outro lugar.
+
+**Renovação do login.** Os tokens de renovação do Claude são rotativos: quando o servidor devolve um novo, o antigo deixa de valer. Por isso, se o token expirou, o LimitBar faz o mesmo pedido que o Claude Code faria e **grava o resultado no arquivo de login do Claude Code**, com estas salvaguardas: relê o arquivo logo antes; só grava se o token no disco ainda for o que ele usou (se o Claude Code renovou nesse meio tempo, o login dele vence e nada é sobrescrito); grava de forma atômica, preservando os demais campos; e, se o servidor recusar, não grava nada e não insiste por 10 minutos. Se preferir que o LimitBar nunca escreva nesse arquivo, desligue **Renovar o login sozinho** em ⚙ → Claude: nesse caso ele só lê, e o Claude Code renova quando você o usa.
 
 O endpoint do Claude limita consultas (HTTP 429). Por isso o app consulta no máximo a cada 2,5 minutos, respeita o `Retry-After` e, em qualquer falha, mantém o último valor bom na tela em vez de mostrar erro.
 
@@ -84,7 +89,7 @@ Para abrir sem janela de console, dê dois cliques em `iniciar.vbs`.
 | Ação | Resultado |
 |---|---|
 | Clique na faixa | Abre ou fecha o painel de detalhes |
-| Botão ⚙ do painel | **Minimizar ao fechar** (o ✕ só esconde o painel, padrão) e **Procurar atualizações** |
+| Botão ⚙ do painel | Minimizar ao fechar, iniciar com o Windows, alertas (níveis, serviços, reset), renovação do login do Claude e atualizações |
 | Clique direito na faixa | Menu: atualizar, minimizar ao fechar, manter aberto, iniciar com o Windows, procurar atualizações, sair |
 | Arrastar a alça `⋮⋮` | Move a faixa na horizontal (a posição é salva) |
 | Mouse sobre uma barra | Horário do reset, ritmo esperado e projeção |
@@ -94,12 +99,12 @@ Para abrir sem janela de console, dê dois cliques em `iniciar.vbs`.
 O LimitBar consulta as [Releases do GitHub](https://github.com/igorfggomes/limitbar/releases) ao abrir e a cada 6 horas. Quando há versão nova:
 
 1. aparece um **⬆** na faixa e um aviso no painel, além de uma notificação do Windows;
-2. clique em **Atualizar agora**: o app baixa o zip, confere o **SHA-256** publicado pelo GitHub, troca os arquivos e **reabre sozinho** (leva cerca de meio minuto);
+2. clique em **Atualizar agora**: o app baixa o zip, confere o **SHA-256** (do GitHub ou do arquivo `.sha256` da Release), troca os arquivos e **reabre sozinho** (leva cerca de meio minuto);
 3. **Depois** dispensa o aviso daquela versão.
 
 Se algo falhar (download, arquivo corrompido, troca de arquivos), a versão atual é mantida. Pelo botão **⚙** do painel ou pelo menu da faixa (clique direito) você pode **procurar atualizações** na hora; no menu também dá para **desligar a verificação automática**. Suas configurações não são tocadas.
 
-A atualização com um clique funciona no app empacotado e instalado em uma pasta onde você pode gravar (como `%LOCALAPPDATA%ProgramsLimitBar` ou a pasta onde extraiu o zip). Em outros casos, o botão abre a página da Release para você baixar manualmente.
+A atualização com um clique funciona no app empacotado e instalado em uma pasta onde você pode gravar (como `%LOCALAPPDATA%\Programs\LimitBar` ou a pasta onde extraiu o zip). Em outros casos, o botão abre a página da Release para você baixar manualmente.
 
 ## Limitações
 
@@ -116,9 +121,30 @@ index.html     painel (barras de uso e configurações)
 dock.html      faixa sobre a barra de tarefas
 preload.js     ponte segura entre a interface e o processo principal
 updater.js     atualização automática (consulta, download, verificação, troca de arquivos)
+lib/           lógica sem dependência do Electron: versões, ritmo e esgotamento, alertas
+tests/         testes automáticos (npm test)
+scripts/       executor dos testes e extração das notas de versão
+.github/       integração contínua e publicação automática das Releases
+CHANGELOG.md   notas de cada versão (viram o texto da Release)
 instalar.ps1   instala como programa (exe + atalhos)
 build/         ícone e script de empacotamento
 ```
+
+## Desenvolvimento
+
+```powershell
+npm install
+npm test        # testes automáticos (usam só o executor nativo do Node)
+npm start       # roda o app direto do código
+```
+
+Os testes cobrem versões, ritmo e esgotamento, alertas, os dois provedores (inclusive a renovação do token, com o servidor simulado) e o atualizador (inclusive a conferência do SHA-256). O GitHub os executa a cada `push` e `pull request` (**CI**), no Node 20 e no 24, e também confere que o empacotamento continua funcionando.
+
+### Publicar uma versão
+
+1. Aumente `version` no `package.json` e acrescente a seção `## X.Y.Z` no `CHANGELOG.md`.
+2. Faça o commit e crie a tag: `git tag vX.Y.Z && git push origin main vX.Y.Z`.
+3. O fluxo **Release** confere se a tag bate com a versão, roda os testes, empacota, gera o zip e o `.sha256` e publica a Release com as notas do `CHANGELOG.md`. Tags com hífen (`v1.4.0-beta.1`) saem como pré-lançamento e **não** são oferecidas pela atualização automática.
 
 ## Licença
 
