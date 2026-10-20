@@ -13,7 +13,7 @@ const DOCK_DEFAULT_OFFSET = 340; // distância da borda direita da tela (área d
 const FLYOUT_MARGIN = 8;
 
 let win, dock, last = null, history = [], hover = true, blurHiddenAt = 0;
-let settings = { compact: false, dockX: null, pinned: false };
+let settings = { compact: true, dockX: null, pinned: false };
 const timers = [];
 const alerted = {}; // "serviço/janela" -> maior nível já avisado nesta janela
 
@@ -159,7 +159,7 @@ function setCompact(v) {
 function showMenu() {
   Menu.buildFromTemplate([
     { label: 'Atualizar agora', click: refresh },
-    { label: 'Modo compacto', type: 'checkbox', checked: settings.compact, click: (i) => setCompact(i.checked) },
+    { label: 'Barras (modo compacto)', type: 'checkbox', checked: settings.compact, click: (i) => setCompact(i.checked) },
     { label: 'Manter aberto ao clicar fora', type: 'checkbox', checked: settings.pinned,
       click: (i) => { settings.pinned = i.checked; saveSettings(); } },
     { label: 'Iniciar com o Windows', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin,
@@ -219,11 +219,14 @@ app.whenReady().then(() => {
     // modo de depuração: abre o flyout, salva capturas e posições, e fecha
     setTimeout(openFlyout, 3000);
     setTimeout(async () => {
+      // o acrílico do Windows não aparece em capturas: usa um fundo escuro equivalente
+      await win.webContents.executeJavaScript("document.documentElement.style.background='#1f2026'; document.body.classList.remove('idle')");
+      await new Promise((r) => setTimeout(r, 500)); // espera o quadro novo ser pintado
       fs.writeFileSync(process.env.WIDGET_SHOT, (await win.webContents.capturePage()).toPNG());
       fs.writeFileSync(process.env.WIDGET_SHOT + '.dock.png', (await dock.webContents.capturePage()).toPNG());
       fs.writeFileSync(process.env.WIDGET_SHOT + '.pos.txt', JSON.stringify({
         win: win.getBounds(), dock: dock.getBounds(), wa: screen.getPrimaryDisplay().workArea,
-        card: await win.webContents.executeJavaScript("[document.getElementById('card').offsetHeight, document.body.className, innerHeight].join(' ')"),
+        card: await win.webContents.executeJavaScript("[document.getElementById('card').offsetHeight, document.body.className, innerHeight, 'erro=' + !!document.querySelector('.errcard')].join(' ')"),
         taskbarButton: false,
       }));
       app.quit();

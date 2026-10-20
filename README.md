@@ -5,20 +5,26 @@
 LimitBar é uma faixa pequena que fica sobre a barra de tarefas mostrando quanto você já usou de cada janela de limite. Um clique abre um painel colado na barra com os detalhes: anéis de progresso, tempo até o reset, ritmo de consumo e histórico.
 
 <p align="center">
-  <img src="docs/faixa.png" alt="Faixa sobre a barra de tarefas" height="48">
+  <img src="docs/faixa.png" alt="Faixa sobre a barra de tarefas com as quatro porcentagens" height="48">
 </p>
-<p align="center">
-  <img src="docs/painel.png" alt="Painel com os anéis de progresso" width="340">
-</p>
+
+Clique na faixa e o painel abre colado na barra, em **barras** (modo padrão) ou em **anéis**:
+
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/compacto.png" alt="Painel em barras (modo compacto, padrão)" width="340"><br><sub>Barras (padrão)</sub></td>
+    <td align="center"><img src="docs/painel.png" alt="Painel em anéis de progresso" width="340"><br><sub>Anéis</sub></td>
+  </tr>
+</table>
 
 ## Recursos
 
 - **Faixa na barra de tarefas** com as quatro porcentagens (Claude 5h / semanal, Codex 5h / semanal). Arraste pela alça `⋮⋮` para posicioná-la.
 - **Painel que abre colado na barra**, ancorado na faixa, e fecha ao clicar fora (ou fica fixo, se preferir).
-- **Anéis de progresso** que mudam de cor: normal, amarelo a partir de 70% e vermelho a partir de 90%.
-- **Marcador de ritmo** em cada anel: mostra onde você *deveria* estar naquele ponto da janela. Passando o mouse, aparecem o horário do reset e a projeção de uso até lá.
-- **Minigráfico** do consumo ao longo da janela (histórico guardado por 7 dias).
-- **Modo compacto**, tema claro/escuro automático e fundo de vidro (acrílico) do Windows 11.
+- **Barras de progresso** (modo padrão) ou **anéis** (alterne pelo botão ▭ ou pelo menu), que mudam de cor: normal, amarelo a partir de 70% e vermelho a partir de 90%.
+- **Marcador de ritmo** em cada barra e anel: mostra onde você *deveria* estar naquele ponto da janela. Passando o mouse, aparecem o horário do reset e a projeção de uso até lá.
+- **Minigráfico** do consumo ao longo da janela, na visão em anéis (histórico guardado por 7 dias).
+- Tema claro/escuro automático e fundo de vidro (acrílico) do Windows 11.
 - **Notificações** ao passar de 80% e de 95% de qualquer janela.
 - **Iniciar com o Windows** pelo menu (clique direito na faixa).
 
@@ -78,7 +84,7 @@ Para abrir sem janela de console, dê dois cliques em `iniciar.vbs`.
 | Ação | Resultado |
 |---|---|
 | Clique na faixa | Abre ou fecha o painel de detalhes |
-| Clique direito na faixa | Menu: atualizar, modo compacto, manter aberto, iniciar com o Windows, sair |
+| Clique direito na faixa | Menu: atualizar, barras/anéis, manter aberto, iniciar com o Windows, sair |
 | Arrastar a alça `⋮⋮` | Move a faixa na horizontal (a posição é salva) |
 | Mouse sobre um anel | Horário do reset, ritmo esperado e projeção |
 
