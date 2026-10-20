@@ -378,6 +378,9 @@ app.whenReady().then(() => {
       // o acrílico do Windows não aparece em capturas: usa um fundo escuro equivalente
       await win.webContents.executeJavaScript("document.documentElement.style.background='#1f2026'; document.body.classList.remove('idle')");
       if (process.env.WIDGET_OPEN_SETTINGS) await win.webContents.executeJavaScript("document.getElementById('g').click()");
+      if (process.env.WIDGET_OPEN_SECTIONS) { // "all" ou índices (1,3) das seções a expandir
+        await win.webContents.executeJavaScript(`(() => { const want = ${JSON.stringify(process.env.WIDGET_OPEN_SECTIONS)}; document.querySelectorAll('details.ps').forEach((d, i) => { d.open = want === 'all' || want.split(',').map(Number).includes(i + 1); }); })()`);
+      }
       await new Promise((r) => setTimeout(r, process.env.WIDGET_OPEN_SETTINGS ? 1500 : 500)); // espera o quadro novo ser pintado
       fs.writeFileSync(process.env.WIDGET_SHOT, (await win.webContents.capturePage()).toPNG());
       fs.writeFileSync(process.env.WIDGET_SHOT + '.dock.png', (await dock.webContents.capturePage()).toPNG());

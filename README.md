@@ -13,7 +13,7 @@ Clique na faixa e o painel abre colado na barra, com as barras de uso e o aviso 
 <table align="center">
   <tr>
     <td align="center" valign="top"><img src="docs/barras.png" alt="Painel com as quatro barras de uso e o aviso de que o limite acaba no ritmo atual" width="270"><br><sub><b>Painel</b></sub></td>
-    <td align="center" valign="top"><img src="docs/configuracoes.png" alt="Tela de configurações com janela, alertas, Claude e atualizações" width="270"><br><sub><b>Configurações</b> (botão ⚙)</sub></td>
+    <td align="center" valign="top"><img src="docs/configuracoes.png" alt="Tela de configurações com seções recolhíveis e a de alertas aberta" width="270"><br><sub><b>Configurações</b> (botão ⚙), em seções recolhíveis</sub></td>
     <td align="center" valign="top"><img src="docs/primeiro-uso.png" alt="Boas-vindas e mensagens de primeiro uso" width="270"><br><sub><b>Primeiro uso</b></sub></td>
   </tr>
 </table>
