@@ -2,18 +2,16 @@
 
 **Seus limites de 5 horas e semanal do Claude e do Codex, sempre visíveis na barra de tarefas do Windows.**
 
-LimitBar é uma faixa pequena que fica sobre a barra de tarefas mostrando quanto você já usou de cada janela de limite. Um clique abre um painel colado na barra com os detalhes: barras de progresso, tempo até o reset e ritmo de consumo.
+Uma faixa pequena sobre a barra de tarefas mostra quanto você já usou de cada janela. Um clique abre um painel colado na barra com barras de progresso, tempo até o reset e ritmo de consumo.
 
 <p align="center">
   <img src="docs/faixa.png" alt="Faixa sobre a barra de tarefas com as quatro porcentagens" height="48">
 </p>
 
-Clique na faixa e o painel abre colado na barra, com as barras de uso e o aviso de ritmo. O ⚙ abre as configurações e, na primeira abertura, o LimitBar explica o que fazer se faltar o Claude Code ou o Codex:
-
 <table align="center">
   <tr>
-    <td align="center" valign="top"><img src="docs/barras.png" alt="Painel com as quatro barras de uso e o aviso de que o limite acaba no ritmo atual" width="270"><br><sub><b>Painel</b></sub></td>
-    <td align="center" valign="top"><img src="docs/configuracoes.png" alt="Tela de configurações com seções recolhíveis e a de alertas aberta" width="270"><br><sub><b>Configurações</b> (botão ⚙), em seções recolhíveis</sub></td>
+    <td align="center" valign="top"><img src="docs/barras.png" alt="Painel com as quatro barras de uso" width="270"><br><sub><b>Painel</b></sub></td>
+    <td align="center" valign="top"><img src="docs/configuracoes.png" alt="Configurações em seções recolhíveis" width="270"><br><sub><b>Configurações</b> (⚙)</sub></td>
     <td align="center" valign="top"><img src="docs/primeiro-uso.png" alt="Boas-vindas e mensagens de primeiro uso" width="270"><br><sub><b>Primeiro uso</b></sub></td>
   </tr>
 </table>
@@ -22,52 +20,28 @@ Clique na faixa e o painel abre colado na barra, com as barras de uso e o aviso 
 
 ## Recursos
 
-- **Faixa na barra de tarefas** com as quatro porcentagens (Claude 5h / semanal, Codex 5h / semanal), com rótulos, cor âmbar a partir de 70%, vermelha com ⚠ a partir de 90% e a borda da faixa acompanhando a pior janela. Arraste pela alça `⋮⋮` para posicioná-la.
-- **Painel que abre colado na barra**, ancorado na faixa, e fecha ao clicar fora (ou fica fixo, se preferir).
-- **Barras de progresso** que mudam de cor: normal, amarelo a partir de 70% e vermelho a partir de 90%.
-- **Marcador de ritmo** em cada barra: mostra onde você *deveria* estar naquele ponto da janela. Passando o mouse, aparecem o horário do reset e a projeção de uso até lá.
-- **Tema Sistema, Claro ou Escuro** (⚙ → Aparência) e fundo de vidro (acrílico) do Windows 11. "Sistema" segue o tema do Windows.
-- **Previsão de esgotamento**: quando você está acima do ritmo, a barra avisa "no ritmo atual, o limite acaba hoje às 14:32" (e, se já bateu 100%, quando volta).
-- **Alertas configuráveis** do Windows: escolha os níveis (50, 70, 80, 90, 95%), avise quando o limite **resetar** e silencie por serviço.
-- **Atualização com um clique**: o app avisa quando sai uma versão nova (um ⬆ na faixa e um aviso no painel) e atualiza sozinho.
-- **Janela de 5h automática (opcional, desligada por padrão)**: quando a janela de 5 horas fica parada, envia uma mensagem mínima pela CLI oficial para a próxima começar, com teto de custo e várias travas (veja [Janela de 5h automática](#janela-de-5h-automática-opcional)).
-- **Renovação automática do login do Claude**: se o token expirar, o LimitBar renova sozinho (pode desligar nas configurações).
-- **Primeiro uso guiado**: boas-vindas na primeira abertura e mensagens que dizem o que fazer quando o Claude Code ou o Codex não estão instalados ou logados.
-- **Iniciar com o Windows** pelas configurações ou pelo menu (clique direito na faixa).
-
-## Como funciona
-
-LimitBar não usa nenhuma conta ou chave sua além do que as próprias ferramentas já guardam no seu computador:
-
-| Serviço | De onde vêm os dados |
-|---|---|
-| **Claude** | O token do Claude Code (`~/.claude/.credentials.json`) é usado para consultar o endpoint de uso que alimenta o comando `/usage`. |
-| **Codex** | Os logs de sessão em `~/.codex/sessions`, que registram `rate_limits` a cada resposta. Só atualiza depois que você usa o Codex. |
-
-O token do Claude é lido do arquivo de login do próprio Claude Code, enviado apenas à Anthropic (`api.anthropic.com` e, para renovar, `platform.claude.com`) e nunca é registrado em log nem copiado para outro lugar.
-
-**Renovação do login.** Os tokens de renovação do Claude são rotativos: quando o servidor devolve um novo, o antigo deixa de valer. Por isso, se o token expirou, o LimitBar faz o mesmo pedido que o Claude Code faria e **grava o resultado no arquivo de login do Claude Code**, com estas salvaguardas: relê o arquivo logo antes; só grava se o token no disco ainda for o que ele usou (se o Claude Code renovou nesse meio tempo, o login dele vence e nada é sobrescrito); grava de forma atômica, preservando os demais campos; e, se o servidor recusar, não grava nada e não insiste por 10 minutos. Se preferir que o LimitBar nunca escreva nesse arquivo, desligue **Renovar o login sozinho** em ⚙ → Claude: nesse caso ele só lê, e o Claude Code renova quando você o usa.
-
-O endpoint do Claude limita consultas (HTTP 429). Por isso o app consulta no máximo a cada 2,5 minutos, respeita o `Retry-After` e, em qualquer falha, mantém o último valor bom na tela em vez de mostrar erro.
-
-> **Aviso:** esta é uma ferramenta não oficial, sem vínculo com a Anthropic ou a OpenAI. O endpoint de uso do Claude e o formato dos logs do Codex não são APIs públicas e podem mudar sem aviso.
+- **Faixa na barra de tarefas** com Claude e Codex (5h e semanal). Âmbar a partir de 70%, vermelho com ⚠ a partir de 90%; a borda acompanha a pior janela. Arraste pela alça `⋮⋮` para posicionar.
+- **Painel** com barras de progresso, marcador de ritmo (onde você *deveria* estar) e horário do reset ao passar o mouse.
+- **Previsão de esgotamento**: "no ritmo atual, o limite acaba hoje às 14:32".
+- **Alertas do Windows** configuráveis (50 a 95%, aviso de reset, silenciar por serviço).
+- **Tema** Sistema, Claro ou Escuro, com fundo acrílico do Windows 11.
+- **Atualização com um clique**, com conferência SHA-256.
+- **Janela de 5h automática** (opcional, desligada por padrão): veja [abaixo](#janela-de-5h-automática-opcional).
+- **Renovação automática do login do Claude** (pode ser desligada).
+- **Iniciar com o Windows** e mensagens de primeiro uso que dizem o que fazer se faltar o Claude Code ou o Codex.
+- Acessível: teclado (`Esc`, `F5`, `Ctrl+,`), leitores de tela, contraste verificado por teste e sem animações se o Windows pedir.
 
 ## Requisitos
 
-- Windows 11 (usa o fundo acrílico e a barra de tarefas do 11)
-- [Node.js](https://nodejs.org) 18 ou superior (só para instalar a partir do código; o zip da Release não precisa)
-- Claude Code e/ou Codex CLI já instalados e logados no mesmo usuário do Windows
+- Windows 11
+- Claude Code e/ou Codex CLI instalados e logados no mesmo usuário do Windows
+- [Node.js](https://nodejs.org) 18+ (só para instalar a partir do código)
 
 ## Instalação
 
-### Baixar pronto (mais fácil, sem Node.js)
+**Pronto, sem Node.js:** baixe o `LimitBar-win32-x64.zip` na [página de Releases](https://github.com/igorfggomes/limitbar/releases/latest), extraia e abra o `LimitBar.exe`. O executável não é assinado, então o SmartScreen pode avisar: **Mais informações → Executar assim mesmo**.
 
-1. Baixe o `LimitBar-win32-x64.zip` na [página de Releases](https://github.com/igorfggomes/limitbar/releases/latest).
-2. Extraia em qualquer pasta e abra o `LimitBar.exe`.
-
-O executável não é assinado digitalmente, então o Windows pode mostrar o aviso do SmartScreen: clique em **Mais informações → Executar assim mesmo**.
-
-### Instalar a partir do código (cria atalhos)
+**A partir do código** (cria atalhos e instala em `%LOCALAPPDATA%\Programs\LimitBar`):
 
 ```powershell
 git clone https://github.com/igorfggomes/limitbar.git
@@ -75,120 +49,69 @@ cd limitbar
 powershell -ExecutionPolicy Bypass -File instalar.ps1
 ```
 
-O script empacota o app, instala em `%LOCALAPPDATA%\Programs\LimitBar` e cria atalhos na Área de Trabalho e no Menu Iniciar. Depois é só abrir o **LimitBar** como qualquer programa (o Node.js só é necessário para essa etapa). Para abrir junto com o Windows, clique com o botão direito na faixa e marque "Iniciar com o Windows".
-
-Para atualizar, use o aviso dentro do app (veja [Atualizações](#atualizações)) ou rode o `instalar.ps1` de novo.
-
-### Rodar direto do código
-
-```powershell
-npm install
-npm start
-```
-
-Para abrir sem janela de console, dê dois cliques em `iniciar.vbs`.
+**Rodar direto do código:** `npm install` e `npm start`.
 
 ## Uso
 
 | Ação | Resultado |
 |---|---|
-| Clique na faixa | Abre ou fecha o painel de detalhes |
-| Botão ⚙ do painel | Minimizar ao fechar, iniciar com o Windows, tema, alertas (níveis, serviços, reset), janela de 5h automática, renovação do login do Claude e atualizações |
-| Clique direito na faixa | Menu: atualizar, minimizar ao fechar, manter aberto, iniciar com o Windows, procurar atualizações, sair |
-| Arrastar a alça `⋮⋮` | Move a faixa na horizontal (a posição é salva) |
-| Mouse sobre uma barra | Horário do reset, ritmo esperado e projeção |
+| Clique na faixa | Abre ou fecha o painel |
+| ⚙ no painel | Configurações: tema, alertas, janela de 5h, login do Claude, atualizações |
+| Clique direito na faixa | Menu: atualizar, minimizar ao fechar, manter aberto, iniciar com o Windows, sair |
+| Arrastar `⋮⋮` | Move a faixa (posição salva) |
 
-## Usabilidade e acessibilidade
+## Como funciona
 
-- **Feedback**: esqueleto de carregamento no início; ao atualizar, o ⟳ gira e o rodapé mostra "Atualizando…".
-- **Teclado**: `Esc` fecha o painel (ou volta das configurações), `F5` atualiza, `Ctrl+,` abre as configurações. Todos os controles têm foco visível.
-- **Leitores de tela**: botões com nome, barras como `progressbar` com valor e texto, avisos anunciados sem tirar o foco.
-- **Não só cor**: a partir de 90% aparece um ⚠, e o marcador de ritmo tem legenda no rodapé.
-- **Erros com saída**: cada erro diz o que fazer e traz o botão "Tentar de novo". Clicar numa notificação do Windows abre o painel.
-- **Contraste e movimento**: todo texto com contraste acima de 4,5:1 nos dois temas (um teste automático lê as cores do CSS e falha se alguma ficar fraca), texto sobre o destaque do Windows escolhido pelo contraste, e animações desligadas se você pediu "reduzir movimento" no Windows.
+| Serviço | De onde vêm os dados |
+|---|---|
+| **Claude** | O token do Claude Code (`~/.claude/.credentials.json`) consulta o endpoint de uso do `/usage`. |
+| **Codex** | Os logs de sessão em `~/.codex/sessions` (`rate_limits`). Só atualiza depois que você usa o Codex. |
+
+O token vai apenas para a Anthropic (`api.anthropic.com` e, para renovar, `platform.claude.com`) e nunca é registrado em log nem copiado para outro lugar. O app consulta no máximo a cada 2,5 minutos, respeita o `Retry-After` do HTTP 429 e, em falhas, mantém o último valor bom.
+
+**Renovação do login.** Os tokens de renovação do Claude são rotativos. Se o token expirou, o LimitBar renova e **grava o resultado no arquivo de login do Claude Code**, só se o token no disco ainda for o que ele usou (se o Claude Code renovou antes, nada é sobrescrito), de forma atômica e sem insistir por 10 minutos se o servidor recusar. Para o LimitBar nunca escrever nesse arquivo, desligue **Renovar o login sozinho** em ⚙ → Claude.
+
+> **Aviso:** ferramenta não oficial, sem vínculo com a Anthropic ou a OpenAI. O endpoint de uso do Claude e o formato dos logs do Codex não são APIs públicas e podem mudar sem aviso.
 
 ## Janela de 5h automática (opcional)
 
-As janelas de 5 horas só começam na primeira mensagem. Com **⚙ → Janela de 5h → Iniciar a janela sozinho**, o LimitBar detecta que a janela de um serviço está parada (sem horário de reset) e envia **uma mensagem mínima** para a próxima começar, para você sempre ter uma janela em andamento, 24 horas por dia. Funciona para o Claude e para o Codex, e você escolhe para quais.
+As janelas de 5 horas só começam na primeira mensagem. Com **⚙ → Janela de 5h → Iniciar a janela sozinho**, o LimitBar detecta uma janela parada e envia **uma mensagem mínima** pela CLI oficial para a próxima começar. Vale para Claude e Codex, à sua escolha.
 
-**O que essa função não faz:** não aumenta o seu limite. Ela só muda *quando* as janelas começam, e cada disparo gasta um pouco do limite semanal. Vale conferir os termos do seu plano sobre uso automatizado.
-
-**Como o disparo é feito.** Sempre pela CLI oficial instalada no seu computador, nunca chamando a API direto com o seu token:
+Não aumenta o seu limite: só muda *quando* as janelas começam, e cada disparo gasta um pouco do limite semanal. Confira os termos do seu plano sobre uso automatizado. Quem usa chave de API (e não assinatura) não deve ligar.
 
 | Serviço | Comando |
 |---|---|
 | Claude | `claude -p "Responda apenas: ok" --model haiku --no-session-persistence --tools ""` |
 | Codex | `codex exec --skip-git-repo-check -s read-only "Responda apenas: ok"` |
 
-Eles rodam numa pasta temporária vazia (nenhum projeto vira contexto) e com as variáveis de chave de API removidas do ambiente (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY` e semelhantes), para a cobrança nunca sair da API em vez da sua assinatura. No Codex a sessão é gravada de propósito: o LimitBar enxerga a janela pelos logs de sessão.
+Roda numa pasta temporária vazia, sem variáveis de chave de API, e nunca chama a API direto com o seu token.
 
-**Teto de custo.** Depois de cada disparo, o LimitBar lê o uso de novo e mede quanto ele custou. Se passar do teto que você escolheu (1%, 2%, 3% ou 5%; padrão 2%), a função é **desligada para aquele serviço** e você recebe um aviso. Religar o serviço ou subir o teto tenta de novo. O 1% não pode ser garantido: o custo real depende do plano e é mostrado nas configurações depois de cada disparo. O uso é lido com resolução de 1 ponto percentual, e o custo medido inclui qualquer outro uso seu no mesmo instante (sessões abertas do Claude Code ou do Codex), então pode sair um pouco inflado.
-
-**Travas contra repetição.** Como um erro aqui gastaria limite de verdade:
-
-- só dispara com a janela comprovadamente parada; leitura duvidosa (rede fora, valor guardado, erro) nunca dispara;
-- espera um minuto depois de abrir o app e 12 minutos depois de um disparo; se falhar, a espera cresce (10, 20, 40, 60 e 120 minutos);
-- no máximo 3 tentativas por janela parada e 8 por dia, por serviço; ao desistir, avisa;
-- uma tentativa por vez.
-
-**Limpeza.** O Claude Code cria uma pasta de projeto vazia para cada pasta de trabalho; como a do disparo é descartável, o LimitBar remove a pasta de projeto dela (e só ela, e só se estiver vazia). Nenhuma conversa é salva.
-
-**Como foi validado.** Com os dois serviços, em uso real: os dois comandos rodam e terminam com sucesso (3 a 5 segundos) e o custo medido ficou entre 0% e 1%. No Codex, o disparo criou uma janela nova (visível nos logs de sessão, e disparos seguintes não a estendem). No Claude, a janela já estava ativa nos testes, então o início de uma janela *parada* não foi observado isoladamente; a decisão de quando disparar é coberta pelos testes automáticos.
-
-**Testar agora** envia uma mensagem a cada serviço marcado (depois de pedir confirmação) e mostra o custo medido, sem contar nas travas e sem desligar nada. O computador precisa estar ligado e o app aberto; quem usa chave de API (e não assinatura) não deve ligar a função.
+- **Teto de custo** (1, 2, 3 ou 5%; padrão 2%): depois de cada disparo o uso é lido de novo; se o custo passar do teto, a função é desligada para aquele serviço e você é avisado. A leitura tem resolução de 1 ponto percentual e inclui outro uso seu no mesmo instante, então o custo pode sair um pouco inflado.
+- **Travas**: só dispara com a janela comprovadamente parada (leitura duvidosa nunca dispara); espera 1 minuto após abrir o app e 12 após um disparo; falhas aumentam a espera (10 a 120 min); no máximo 3 tentativas por janela parada e 8 por dia, por serviço.
+- **Testar agora** envia uma mensagem a cada serviço marcado (com confirmação) e mostra o custo medido.
+- **Validação**: nos dois serviços, em uso real, os comandos terminaram com sucesso e o custo ficou entre 0% e 1%. No Codex a criação de uma janela nova foi observada; no Claude, não foi isolada (a janela já estava ativa).
 
 ## Atualizações
 
-O LimitBar consulta as [Releases do GitHub](https://github.com/igorfggomes/limitbar/releases) ao abrir e a cada 6 horas. Quando há versão nova:
-
-1. aparece um **⬆** na faixa e um aviso no painel, além de uma notificação do Windows;
-2. clique em **Atualizar agora**: o app baixa o zip, confere o **SHA-256** (do GitHub ou do arquivo `.sha256` da Release), troca os arquivos e **reabre sozinho** (leva cerca de meio minuto);
-3. **Depois** dispensa o aviso daquela versão.
-
-Se algo falhar (download, arquivo corrompido, troca de arquivos), a versão atual é mantida. Pelo botão **⚙** do painel ou pelo menu da faixa (clique direito) você pode **procurar atualizações** na hora; no menu também dá para **desligar a verificação automática**. Suas configurações não são tocadas.
-
-A atualização com um clique funciona no app empacotado e instalado em uma pasta onde você pode gravar (como `%LOCALAPPDATA%\Programs\LimitBar` ou a pasta onde extraiu o zip). Em outros casos, o botão abre a página da Release para você baixar manualmente.
+O LimitBar consulta as [Releases](https://github.com/igorfggomes/limitbar/releases) ao abrir e a cada 6 horas. Havendo versão nova, aparece um **⬆** na faixa; **Atualizar agora** baixa o zip, confere o SHA-256, troca os arquivos e reabre o app. Se algo falhar, a versão atual é mantida e suas configurações não são tocadas. Funciona no app empacotado em pasta com permissão de escrita; nos demais casos, abre a página da Release. Dá para procurar na hora (⚙) ou desligar a verificação automática (menu da faixa).
 
 ## Limitações
 
-- A barra de tarefas do Windows 11 não permite que apps comuns desenhem dentro dela, então a faixa é uma janela posicionada por cima. O app a reergue sempre que o Windows põe a barra na frente.
-- Testado em um monitor, com a barra de tarefas embaixo. Barra no topo ou nas laterais é tratada, mas pouco testada.
-- Os dados do Codex só mudam depois de você usá-lo.
-
-## Estrutura
-
-```
-main.js        processo principal: janelas, faixa, flyout, alertas
-providers.js   leitura dos dados do Claude e do Codex
-index.html     painel (barras de uso e configurações)
-dock.html      faixa sobre a barra de tarefas
-preload.js     ponte segura entre a interface e o processo principal
-updater.js     atualização automática (consulta, download, verificação, troca de arquivos)
-lib/           lógica sem dependência do Electron: versões, ritmo e esgotamento, alertas, janela de 5h (decisão e execução)
-tests/         testes automáticos (npm test)
-scripts/       executor dos testes e extração das notas de versão
-.github/       integração contínua e publicação automática das Releases
-CHANGELOG.md   notas de cada versão (viram o texto da Release)
-instalar.ps1   instala como programa (exe + atalhos)
-build/         ícone e script de empacotamento
-```
+- A faixa é uma janela posicionada sobre a barra de tarefas (o Windows 11 não permite desenhar dentro dela) e é reerguida quando a barra vem para a frente.
+- Testado em um monitor, com a barra embaixo.
 
 ## Desenvolvimento
 
 ```powershell
 npm install
-npm test        # testes automáticos (usam só o executor nativo do Node)
-npm run test:ui # 33 verificações da interface (painel e faixa) num Electron oculto (precisa do Electron instalado)
-npm start       # roda o app direto do código
+npm test        # testes automáticos
+npm run test:ui # verificações da interface num Electron oculto
+npm start
 ```
 
-Os testes cobrem versões, ritmo e esgotamento, alertas, a janela de 5h automática (decisão, travas, teto de custo e execução dos comandos), os dois provedores (inclusive a renovação do token, com o servidor simulado) e o atualizador (inclusive a conferência do SHA-256). O GitHub os executa a cada `push` e `pull request` (**CI**), no Node 20 e no 24, e também confere que o empacotamento continua funcionando.
+O GitHub executa os testes a cada `push` e `pull request` (Node 20 e 24).
 
-### Publicar uma versão
-
-1. Aumente `version` no `package.json` e acrescente a seção `## X.Y.Z` no `CHANGELOG.md`.
-2. Faça o commit e crie a tag: `git tag vX.Y.Z && git push origin main vX.Y.Z`.
-3. O fluxo **Release** confere se a tag bate com a versão, roda os testes, empacota, gera o zip e o `.sha256` e publica a Release com as notas do `CHANGELOG.md`. Tags com hífen (`v1.4.0-beta.1`) saem como pré-lançamento e **não** são oferecidas pela atualização automática.
+**Publicar uma versão:** aumente `version` no `package.json`, acrescente `## X.Y.Z` no `CHANGELOG.md`, faça o commit e rode `git tag vX.Y.Z && git push origin main vX.Y.Z`. O fluxo **Release** roda os testes, empacota e publica o zip com o `.sha256` e as notas do CHANGELOG. Tags com hífen (`v1.4.0-beta.1`) saem como pré-lançamento e não são oferecidas pela atualização automática.
 
 ## Licença
 
