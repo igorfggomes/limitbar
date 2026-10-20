@@ -61,15 +61,23 @@
              color: var(--mut); font-size: 12px; text-align: center; line-height: 1.4; }
   .errcard .ic { font-size: 18px; display: block; margin-bottom: 4px; opacity: .8; }
 
-  /* ----- modo compacto ----- */
-  .compact-row { display: none; gap: 14px; align-items: center; justify-content: space-around; }
-  .pill { -webkit-app-region: no-drag; display: flex; align-items: center; gap: 6px; font-weight: 600; }
-  .pill svg { width: 16px; height: 16px; }
-  .pill .sep { color: var(--mut); font-weight: 400; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 3px; }
-  body.compact .grid, body.compact footer { display: none; }
-  body.compact .compact-row { display: flex; }
-  body.compact header { margin-bottom: 6px; }
+  /* ----- modo compacto: barras horizontais que preenchem o painel ----- */
+  .bars { display: none; flex-direction: column; gap: 14px; }
+  .brow { -webkit-app-region: no-drag; }
+  .brow .top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .brow .top svg { width: 17px; height: 17px; flex: none; }
+  .brow .nm { font-weight: 600; font-size: 13px; }
+  .brow .rs { color: var(--mut); font-size: 11px; margin-left: auto; }
+  .brow .pc { font-weight: 700; font-size: 17px; min-width: 46px; text-align: right; }
+  .track { position: relative; height: 10px; border-radius: 5px; background: var(--track); }
+  .track .fill { height: 100%; width: 0; border-radius: 5px; transition: width .7s cubic-bezier(.2,.8,.2,1), background .4s; }
+  .track .mark { position: absolute; top: -3px; width: 2px; height: 16px; margin-left: -1px; border-radius: 1px;
+                 background: var(--tick); opacity: .85; transition: left .6s; }
+  .brow.hot .fill { animation: pulse 1.6s ease-in-out infinite; }
+  .bars .errcard { text-align: left; }
+  body.compact .grid { display: none; }
+  body.compact .bars { display: flex; }
+  body.compact footer { margin-top: 12px; }
 
   footer { margin-top: 10px; color: var(--mut); font-size: 11px; text-align: right; }
 </style>
@@ -86,7 +94,7 @@
     </div>
   </header>
   <div class="grid" id="grid"></div>
-  <div class="compact-row" id="compact"></div>
+  <div class="bars" id="bars"></div>
   <footer id="foot"></footer>
 </div>
 
@@ -210,14 +218,48 @@ function update(key, p) {
   });
 }
 
+let barsSig = '', barRefs = [];
 function renderCompact() {
-  document.getElementById('compact').innerHTML = KEYS.map((k) => {
-    const p = data[k], s = SVC[k];
-    const vals = p.ok
-      ? p.windows.map((w) => `<span class="num" title="${tooltip(s.name, w)}"><i class="dot" style="background:${statusColor(w.percent, s.color)}"></i>${Math.round(w.percent)}%</span>`).join('<span class="sep">/</span>')
-      : '<span title="' + p.error + '">⚠</span>';
-    return `<div class="pill">${s.logo}${vals}</div>`;
-  }).join('');
+  const rows = [];
+  KEYS.forEach((k) => {
+    const p = data[k];
+    if (p.ok) p.windows.forEach((w, i) => rows.push({ k, w, i }));
+    else rows.push({ k, err: p.error });
+  });
+  const sig = rows.map((r) => (r.err ? 'e:' + r.k + r.err : r.k + r.i)).join('|');
+  const box = document.getElementById('bars');
+  if (sig !== barsSig) { // estrutura mudou: reconstrói as linhas
+    barsSig = sig; barRefs = [];
+    box.innerHTML = '';
+    rows.forEach((r) => {
+      const s = SVC[r.k], el = document.createElement('div');
+      if (r.err) {
+        el.className = 'errcard';
+        el.innerHTML = `${s.name}: ${r.err}`;
+        box.appendChild(el); barRefs.push(null); return;
+      }
+      el.className = 'brow';
+      el.innerHTML = `<div class="top">${s.logo}<span class="nm">${s.name} · ${r.w.label}</span>
+        <span class="rs num"></span><span class="pc num">0%</span></div>
+        <div class="track"><div class="fill"></div><i class="mark"></i></div>`;
+      box.appendChild(el);
+      barRefs.push({ el, fill: el.querySelector('.fill'), mark: el.querySelector('.mark'),
+        rs: el.querySelector('.rs'), pc: el.querySelector('.pc') });
+    });
+  }
+  rows.forEach((r, n) => {
+    const b = barRefs[n];
+    if (!b) return;
+    const pct = Math.max(0, Math.min(100, r.w.percent)), s = SVC[r.k], pc = pace(r.w);
+    requestAnimationFrame(() => { b.fill.style.width = pct + '%'; });
+    b.fill.style.background = statusColor(pct, s.color);
+    b.pc.textContent = Math.round(pct) + '%';
+    b.rs.textContent = until(r.w.resetsAt);
+    b.mark.style.display = pc ? '' : 'none';
+    if (pc) b.mark.style.left = pc.frac * 100 + '%';
+    b.el.title = tooltip(s.name, r.w);
+    b.el.classList.toggle('hot', pct >= 90);
+  });
 }
 
 function render() {
@@ -240,6 +282,7 @@ function render() {
   fit();
 }
 function fit() { window.api.resize(document.getElementById('card').offsetHeight); }
+new ResizeObserver(fit).observe(document.getElementById('card'));
 
 window.api.onData((d) => {
   data = d;

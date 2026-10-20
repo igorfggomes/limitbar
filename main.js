@@ -202,7 +202,10 @@ app.whenReady().then(() => {
   ipcMain.on('dock-menu', showMenu);
   ipcMain.on('resize', (_e, h) => {
     if (!alive(win)) return;
+    // janelas não redimensionáveis ignoram pedidos para encolher no Windows: libera só durante a troca
+    win.setResizable(true);
     win.setSize(WIDTH, Math.ceil(h));
+    win.setResizable(false);
     if (win.isVisible()) placeFlyout(); // a altura mudou: mantém colado na barra
   });
   ipcMain.on('dock-resize', (_e, w) => { // só redimensiona se a largura realmente mudou
@@ -220,6 +223,7 @@ app.whenReady().then(() => {
       fs.writeFileSync(process.env.WIDGET_SHOT + '.dock.png', (await dock.webContents.capturePage()).toPNG());
       fs.writeFileSync(process.env.WIDGET_SHOT + '.pos.txt', JSON.stringify({
         win: win.getBounds(), dock: dock.getBounds(), wa: screen.getPrimaryDisplay().workArea,
+        card: await win.webContents.executeJavaScript("[document.getElementById('card').offsetHeight, document.body.className, innerHeight].join(' ')"),
         taskbarButton: false,
       }));
       app.quit();
