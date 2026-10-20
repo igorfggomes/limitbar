@@ -13,7 +13,7 @@
     "test": "node scripts/test.js",
     "package": "node build/package.js",
     "install_app": "powershell -ExecutionPolicy Bypass -File instalar.ps1",
-    "test:ui": "electron tests/ui-smoke.js"
+    "test:ui": "electron tests/ui-smoke.js && electron tests/dock-smoke.js"
   },
   "devDependencies": {
     "@electron/packager": "^20.3.0",

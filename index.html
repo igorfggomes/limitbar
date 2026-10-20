@@ -42,7 +42,8 @@
   button:focus-visible { outline: 2px solid var(--accent); }
 
   /* ----- barras de uso ----- */
-  .bars { display: flex; flex-direction: column; gap: 14px; }
+  .bars { display: flex; flex-direction: column; gap: 10px; }
+  .brow.newsvc { margin-top: 12px; }
   .brow { -webkit-app-region: no-drag; }
   .brow .top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .brow .top svg { width: 17px; height: 17px; flex: none; }
@@ -156,6 +157,8 @@
 
   footer { margin-top: 12px; color: var(--mut); font-size: 11px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
   footer .legend i { display: inline-block; width: 2px; height: 12px; margin-right: 6px; vertical-align: -2px; background: var(--tick); opacity: .85; border-radius: 1px; }
+
+  #foottxt.old { color: var(--warn); font-weight: 600; }
 
   /* quem pede menos movimento no Windows não vê animações nem transições */
   @media (prefers-reduced-motion: reduce) {
@@ -285,6 +288,12 @@ const SVC = {
 const KEYS = ['claude', 'codex'];
 const $ = (id) => document.getElementById(id);
 const hm = (t) => new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+// idade do dado: nada nos primeiros 2 minutos (é o normal); depois "há N min" ou "há N h"
+function ago(t) {
+  const m = Math.floor((Date.now() - t) / 60000);
+  if (m < 2) return '';
+  return m < 60 ? `há ${m} min` : `há ${Math.floor(m / 60)} h`;
+}
 let data = null, lastCheck = null, lastUpdate = { state: 'none' }, updHidden = false;
 
 // texto sobre o destaque do Windows: branco só se tiver contraste de leitura (4,5:1); senão, texto escuro
@@ -361,7 +370,7 @@ function renderBars() {
   if (sig !== barsSig) { // estrutura mudou: reconstrói as linhas
     barsSig = sig; barRefs = [];
     box.innerHTML = '';
-    rows.forEach((r) => {
+    rows.forEach((r, idx) => {
       const s = SVC[r.k], el = document.createElement('div');
       if (r.err) {
         el.className = 'errcard'; el.setAttribute('role', 'alert');
@@ -373,7 +382,7 @@ function renderBars() {
         el.append(name, r.err, retry); // texto puro: a mensagem diz o que fazer; o botão tenta de novo
         box.appendChild(el); barRefs.push(null); return;
       }
-      el.className = 'brow'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', `${s.name} · ${r.w.label}`);
+      el.className = 'brow' + (r.i === 0 && idx > 0 ? ' newsvc' : ''); el.setAttribute('role', 'group'); el.setAttribute('aria-label', `${s.name} · ${r.w.label}`);
       el.innerHTML = `<div class="top"><span aria-hidden="true">${s.logo}</span><span class="nm">${s.name} · ${r.w.label}</span>
         <span class="rs num"></span><span class="pc num">0%</span></div>
         <div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="${s.name} · ${r.w.label}"><div class="fill"></div><i class="mark" aria-hidden="true"></i></div>
@@ -409,9 +418,11 @@ function render() {
   if (!data) return;
   renderBars();
   if (refreshing) return; // o rodapé mostra "Atualizando…" até a leitura chegar
-  $('foottxt').textContent = data.claude.stale
-    ? `Claude de ${hm(data.claude.fetchedAt)} (consulta limitada) · atualizado ${hm(data.updatedAt)}`
-    : 'atualizado ' + hm(data.updatedAt);
+  const age = ago(data.updatedAt);
+  $('foottxt').textContent = (data.claude.stale ? `Claude de ${hm(data.claude.fetchedAt)} (consulta limitada) · ` : '')
+    + 'atualizado ' + hm(data.updatedAt) + (age ? ' · ' + age : '');
+  // dado velho (notebook dormiu, internet caiu...): o rodapé avisa em âmbar em vez de parecer atual
+  $('foottxt').classList.toggle('old', Date.now() - data.updatedAt > 5 * 60e3);
 }
 
 // o painel acompanha a altura do conteúdo

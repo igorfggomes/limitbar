@@ -15,6 +15,13 @@ O fluxo de publicação usa a seção da versão deste arquivo como texto da Rel
 - No tema claro, o âmbar, o verde e o vermelho de estado ficaram mais escuros: o âmbar e o verde tinham só 2,6:1 e 2,9:1 de contraste (agora acima de 5:1).
 - Um teste lê as cores do CSS e falha se algum texto ficar abaixo de 4,5:1 (ou barra abaixo de 3:1) em qualquer tema.
 
+### Exibição das informações
+- **Faixa**: cada número ganhou o rótulo `5h` ou `sem`; a partir de 70% fica âmbar, a partir de 90% vermelho com ⚠, e a borda da faixa acompanha a pior janela dos dois serviços.
+- **Tooltips da faixa** com serviço, janela, percentual e quando reseta ("Claude · 5 horas: 44% — reseta em 2h 59min").
+- **Correção**: mensagem de erro com aspas quebrava o tooltip da faixa; agora o texto é escapado.
+- **Painel**: linhas do mesmo serviço ficam mais próximas e há mais espaço entre Claude e Codex (mesma altura total).
+- **Rodapé**: mostra "há N min" quando o dado tem mais de 2 minutos e fica âmbar acima de 5 minutos (notebook dormiu, internet caiu).
+
 ### Usabilidade e acessibilidade
 - **Feedback de estado**: esqueleto de carregamento enquanto a primeira leitura não chega; ao atualizar, o ⟳ gira, o botão fica desabilitado e o rodapé diz "Atualizando…".
 - **Leitores de tela**: botões de ícone com nome, cada barra é um `progressbar` com valor e texto ("44%, reseta em 3h 36min"), avisos de atualização anunciados sem roubar o foco.
@@ -42,7 +49,7 @@ O fluxo de publicação usa a seção da versão deste arquivo como texto da Rel
 - Não aumenta o limite: só muda quando as janelas começam, e cada disparo gasta um pouco do limite semanal.
 
 ### Por trás
-- Testes de mutação para as travas e para a limpeza da janela automática; 132 testes automáticos e 19 verificações de interface (`npm run test:ui`).
+- Testes de mutação para as travas e para a limpeza da janela automática; 132 testes automáticos e 33 verificações de interface, 22 do painel e 11 da faixa (`npm run test:ui`).
 - Validada em uso real com Claude e Codex: custo medido de 0% a 1%; no Codex, o disparo criou a janela.
 
 ## 1.3.0 — 2026-10-20

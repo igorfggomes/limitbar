@@ -20,10 +20,18 @@ const reading = () => ({
   codex: { ok: false, code: 'not-installed', error: 'Codex CLI não encontrado. Instale-o e rode "codex" para entrar na sua conta.' },
 });
 
+const reading2 = () => ({
+  updatedAt: Date.now(), accent: '#0067c0',
+  claude: reading().claude,
+  codex: { ok: true, windows: [
+    { label: '5 horas', percent: 10, resetsAt: Date.now() + 4 * H, windowMs: 5 * H },
+    { label: 'Semanal', percent: 20, resetsAt: Date.now() + 90 * H, windowMs: 168 * H }] },
+});
+
 let failures = 0;
 const results = [];
 async function check(name, fn) {
-  try { await fn(); results.push(['OK   ', name]); } catch (e) { failures++; results.push(['FALHA', `${name}\n         ${String(e.message).split('\n')[0]}`]); }
+  try { await fn(); results.push(['OK   ', name]); } catch (e) { failures++; results.push(['FALHA', `${name}\n         ${String(e.message).split('\n').slice(0, 4).join(' | ')}`]); }
 }
 
 app.whenReady().then(async () => {
@@ -78,6 +86,32 @@ app.whenReady().then(async () => {
   await check('erro vem com ação: botão "Tentar de novo" dentro de um alerta', async () => {
     assert.equal(await js("document.querySelector('.errcard').getAttribute('role')"), 'alert');
     assert.equal(await js("document.querySelector('.errcard button').textContent"), 'Tentar de novo');
+  });
+
+  await check('agrupamento: só a primeira linha de cada serviço (menos a primeira de todas) ganha o espaço extra', async () => {
+    await js(`window.__push.data(${JSON.stringify(reading2())})`);
+    await wait(100);
+    const groups = await js("[...document.querySelectorAll('.brow')].map((b) => [b.getAttribute('aria-label'), b.classList.contains('newsvc')])");
+    assert.deepEqual(groups, [['Claude · 5 horas', false], ['Claude · Semanal', false], ['Codex · 5 horas', true], ['Codex · Semanal', false]]);
+    await js(`window.__push.data(${JSON.stringify(reading())})`); // volta ao estado dos próximos testes
+    await wait(100);
+  });
+
+  await check('frescor: dado com mais de 2 min mostra a idade; com mais de 5 min o rodapé fica âmbar', async () => {
+    // "min + 30 s" atrás: no MEIO do minuto, para 1 ms de diferença entre os relógios não mudar o piso
+    const at = (min) => JSON.stringify({ ...reading(), updatedAt: Date.now() - (min * 60 + 30) * 1000 });
+    await js(`window.__push.data(${at(0)})`); await wait(50);
+    assert.doesNotMatch(await js("document.getElementById('foottxt').textContent"), /há /);
+    assert.equal(await js("document.getElementById('foottxt').classList.contains('old')"), false);
+    await js(`window.__push.data(${at(3)})`); await wait(50);
+    assert.match(await js("document.getElementById('foottxt').textContent"), /atualizado \d\d:\d\d · há 3 min$/);
+    assert.equal(await js("document.getElementById('foottxt').classList.contains('old')"), false);
+    await js(`window.__push.data(${at(12)})`); await wait(50);
+    assert.match(await js("document.getElementById('foottxt').textContent"), /há 12 min$/);
+    assert.equal(await js("document.getElementById('foottxt').classList.contains('old')"), true);
+    await js(`window.__push.data(${at(130)})`); await wait(50);
+    assert.match(await js("document.getElementById('foottxt').textContent"), /há 2 h$/);
+    await js(`window.__push.data(${at(0)})`); await wait(50);
   });
 
   await check('o botão de tentar de novo fica sempre numa linha própria, abaixo do texto', async () => {

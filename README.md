@@ -22,7 +22,7 @@ Clique na faixa e o painel abre colado na barra, com as barras de uso e o aviso 
 
 ## Recursos
 
-- **Faixa na barra de tarefas** com as quatro porcentagens (Claude 5h / semanal, Codex 5h / semanal). Arraste pela alça `⋮⋮` para posicioná-la.
+- **Faixa na barra de tarefas** com as quatro porcentagens (Claude 5h / semanal, Codex 5h / semanal), com rótulos, cor âmbar a partir de 70%, vermelha com ⚠ a partir de 90% e a borda da faixa acompanhando a pior janela. Arraste pela alça `⋮⋮` para posicioná-la.
 - **Painel que abre colado na barra**, ancorado na faixa, e fecha ao clicar fora (ou fica fixo, se preferir).
 - **Barras de progresso** que mudam de cor: normal, amarelo a partir de 70% e vermelho a partir de 90%.
 - **Marcador de ritmo** em cada barra: mostra onde você *deveria* estar naquele ponto da janela. Passando o mouse, aparecem o horário do reset e a projeção de uso até lá.
@@ -178,7 +178,7 @@ build/         ícone e script de empacotamento
 ```powershell
 npm install
 npm test        # testes automáticos (usam só o executor nativo do Node)
-npm run test:ui # 19 verificações da interface num Electron oculto (precisa do Electron instalado)
+npm run test:ui # 33 verificações da interface (painel e faixa) num Electron oculto (precisa do Electron instalado)
 npm start       # roda o app direto do código
 ```
 

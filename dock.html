@@ -10,7 +10,10 @@
   /* a barra do Windows pode ser clara ou escura: o fundo próprio garante leitura nos dois casos */
   #bar { display: inline-flex; align-items: center; gap: 12px; height: 100%; padding: 0 6px 0 4px;
          background: rgba(24,24,28,.72); border-radius: 8px; border: 1px solid rgba(255,255,255,.10);
-         white-space: nowrap; }
+         white-space: nowrap; transition: border-color .3s, background .3s; }
+  /* a faixa inteira muda de cor quando alguma janela passa de 70% (âmbar) ou 90% (vermelho): dá para ver de relance */
+  #bar.warn { border-color: rgba(250,204,21,.6); }
+  #bar.bad { border-color: rgba(248,113,113,.75); background: rgba(58,24,26,.8); }
   /* alça para arrastar a faixa na horizontal; o resto é clicável e abre o flyout */
   #grip { -webkit-app-region: drag; width: 12px; align-self: stretch; margin-left: -2px; cursor: grab;
           display: grid; place-items: center; color: #71717a; font-size: 10px; letter-spacing: -2px; }
@@ -18,12 +21,18 @@
   #v { -webkit-app-region: no-drag; display: flex; align-items: center; gap: 12px; height: 100%;
        padding-right: 4px; cursor: pointer; border-radius: 6px; }
   #v:hover { background: rgba(255,255,255,.10); }
-  .pill { display: flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+  .pill { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
   .pill svg { width: 15px; height: 15px; }
-  .sep { color: #a1a1aa; font-weight: 400; }
+  .w { display: inline-flex; align-items: baseline; gap: 4px; }
+  /* rótulo da janela: "5h" ou "sem" (semanal) */
+  .w em { font-style: normal; font-weight: 500; font-size: 11px; color: #a1a1aa; }
+  .n.warn { color: var(--warn); }
+  .n.bad { color: var(--bad); }
+  .sep { color: #71717a; font-weight: 400; }
+  .gap { width: 6px; }
   #up { color: #facc15; font-size: 15px; animation: bob 1.6s ease-in-out infinite; }
   @keyframes bob { 50% { transform: translateY(-2px); } }
-  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 3px; }
+  @media (prefers-reduced-motion: reduce) { #up { animation: none; } #bar { transition: none; } }
 </style>
 </head>
 <body>
@@ -33,20 +42,41 @@ const LOGO = {
   claude: `<svg viewBox="0 0 24 24"><g stroke="#e8845f" stroke-width="2.6" stroke-linecap="round"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></g></svg>`,
   codex: `<svg viewBox="0 0 24 24"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z" fill="none" stroke="#19c39a" stroke-width="2.4" stroke-linejoin="round"/></svg>`,
 };
-const BASE = { claude: 'var(--claude)', codex: 'var(--codex)' };
-const col = (p, b) => (p >= 90 ? 'var(--bad)' : p >= 70 ? 'var(--warn)' : b);
+const NAME = { claude: 'Claude', codex: 'Codex' };
+const SHORT = { '5 horas': '5h', 'Semanal': 'sem' };
+// texto que vai para dentro de atributos (title) precisa de escape: mensagens de erro trazem aspas
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const level = (p) => (p >= 90 ? 'bad' : p >= 70 ? 'warn' : 'ok');
 
-let lastHtml = '';
+function until(ms) {
+  if (!ms) return 'janela livre';
+  let s = Math.max(0, Math.floor((ms - Date.now()) / 1000));
+  const d = Math.floor(s / 86400); s -= d * 86400;
+  const h = Math.floor(s / 3600); s -= h * 3600;
+  const m = Math.floor(s / 60);
+  return 'reseta em ' + (d ? `${d}d ${h}h` : h ? `${h}h ${m}min` : `${m}min`);
+}
+
+let lastKey = '';
 window.api.onData((d) => {
+  let worst = 0;
   const html = ['claude', 'codex'].map((k) => {
     const p = d[k];
-    const vals = p.ok
-      ? p.windows.map((w) => `<span title="${k} · ${w.label}"><i class="dot" style="background:${col(w.percent, BASE[k])}"></i>${Math.round(w.percent)}%</span>`).join('<span class="sep">/</span>')
-      : `<span title="${p.error}">⚠</span>`;
-    return `<span class="pill">${LOGO[k]}${vals}</span>`;
-  }).join('<span style="width:6px"></span>');
-  if (html === lastHtml) return; // nada mudou: não mexe no DOM nem na janela (evita piscar)
-  lastHtml = html;
+    if (!p.ok) { // o motivo vai no tooltip; o ⚠ não depende de cor
+      return `<span class="pill" title="${esc(NAME[k] + ': ' + p.error)}">${LOGO[k]}<span class="w"><b class="n bad">⚠</b></span></span>`;
+    }
+    const ws = p.windows.map((w) => {
+      worst = Math.max(worst, w.percent);
+      const tip = `${NAME[k]} · ${w.label}: ${Math.round(w.percent)}% — ${until(w.resetsAt)}`;
+      return `<span class="w" title="${esc(tip)}"><em>${esc(SHORT[w.label] || w.label)}</em><b class="n ${level(w.percent)}">${w.percent >= 90 ? '⚠ ' : ''}${Math.round(w.percent)}%</b></span>`;
+    }).join('<span class="sep">·</span>');
+    return `<span class="pill">${LOGO[k]}${ws}</span>`;
+  }).join('<span class="gap"></span>');
+  const state = worst >= 90 ? 'bad' : worst >= 70 ? 'warn' : '';
+  const key = state + '|' + html;
+  if (key === lastKey) return; // nada mudou: não mexe no DOM nem na janela (evita piscar)
+  lastKey = key;
+  document.getElementById('bar').className = state;
   document.getElementById('v').innerHTML = html;
   window.api.dockResize(document.getElementById('bar').offsetWidth + 2);
 });
