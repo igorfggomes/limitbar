@@ -5,14 +5,14 @@
 <style>
   :root {
     --bg: rgba(20,20,24,.55); --fg: #f4f4f5; --mut: #a1a1aa; --track: rgba(255,255,255,.12);
-    --line: rgba(255,255,255,.10); --tick: #fff; --pop: rgba(36,37,44,.98);
+    --line: rgba(255,255,255,.10); --tick: #fff;
     --ok: #4ade80; --warn: #facc15; --bad: #f87171; --claude: #e8845f; --codex: #19c39a;
     --accent: #d97757;
   }
   @media (prefers-color-scheme: light) {
     :root {
       --bg: rgba(255,255,255,.55); --fg: #18181b; --mut: #52525b; --track: rgba(0,0,0,.10);
-      --line: rgba(0,0,0,.10); --tick: #18181b; --pop: rgba(252,252,253,.98);
+      --line: rgba(0,0,0,.10); --tick: #18181b;
       --ok: #16a34a; --warn: #ca8a04; --bad: #dc2626; --claude: #c2542d; --codex: #0d8a6b;
     }
   }
@@ -22,67 +22,21 @@
   body { transition: opacity .25s; }
   body.idle { opacity: .72; }
   .num { font-variant-numeric: tabular-nums; }
+  @keyframes pulse { 50% { opacity: .55; } }
 
   .card { padding: 12px 14px 12px; background: var(--bg); -webkit-app-region: drag; }
-  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   header b { font-size: 11px; letter-spacing: .08em; color: var(--mut); text-transform: uppercase; }
   .btns { -webkit-app-region: no-drag; display: flex; gap: 2px; }
   button { background: none; border: 0; color: var(--mut); cursor: pointer; width: 24px; height: 22px;
            border-radius: 6px; font-size: 13px; line-height: 1; }
   button:hover { color: var(--fg); background: var(--track); }
+  button.on { color: var(--fg); background: var(--track); }
   button.x:hover { background: var(--bad); color: #fff; }
   button:focus-visible { outline: 2px solid var(--accent); }
 
-  /* ----- configurações (popover) ----- */
-  .card { position: relative; }
-  .pop { -webkit-app-region: no-drag; position: absolute; top: 40px; right: 10px; z-index: 5; width: 270px; padding: 12px;
-         border-radius: 12px; background: var(--pop); border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0,0,0,.45); }
-  .pop[hidden] { display: none; }
-  .opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; }
-  .opt b { display: block; font-size: 13px; }
-  .opt small { display: block; margin-top: 2px; color: var(--mut); font-size: 11px; line-height: 1.3; }
-  .sw { appearance: none; flex: none; width: 36px; height: 20px; border-radius: 10px; background: var(--track); position: relative;
-        cursor: pointer; transition: background .2s; }
-  .sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff;
-               transition: transform .2s; }
-  .sw:checked { background: var(--accent); }
-  .sw:checked::after { transform: translateX(16px); }
-  .sw:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .pop .act { width: 100%; height: 30px; margin-top: 12px; border-radius: 8px; background: var(--track); color: var(--fg);
-              font-size: 13px; font-weight: 600; }
-  .pop .act:hover { filter: brightness(1.2); }
-  .pop .ver { margin-top: 8px; text-align: center; color: var(--mut); font-size: 11px; }
-
-  /* ----- modo completo ----- */
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .col { display: flex; flex-direction: column; gap: 8px; }
-  .svc { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 13px; }
-  .svc svg { width: 18px; height: 18px; }
-  .cell { -webkit-app-region: no-drag; display: flex; flex-direction: column; align-items: center;
-          padding: 8px 4px 6px; border-radius: 12px; border: 1px solid var(--line); }
-  .ring { position: relative; width: 84px; height: 84px; }
-  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
-  .ring .trk { fill: none; stroke: var(--track); stroke-width: 7; }
-  .ring .val { fill: none; stroke-width: 7; stroke-linecap: round;
-               transition: stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1), stroke .4s; }
-  .ring .tick { stroke: var(--tick); stroke-width: 2; stroke-linecap: round; opacity: .85;
-                transition: transform .6s; transform-origin: 44px 44px; }
-  .ring .pct { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; font-weight: 600; }
-  .ring .pct small { font-size: 11px; font-weight: 500; color: var(--mut); margin-left: 1px; }
-  .cell.hot .ring .val { animation: pulse 1.6s ease-in-out infinite; }
-  @keyframes pulse { 50% { opacity: .55; } }
-  .lbl { margin-top: 4px; font-size: 12px; font-weight: 600; }
-  .cap { color: var(--mut); font-size: 11px; }
-  .spark { width: 100%; height: 16px; margin-top: 4px; }
-  .spark path { fill: none; stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; opacity: .9; }
-  .spark .flat { stroke-dasharray: 2 3; opacity: .4; }
-
-  .errcard { -webkit-app-region: no-drag; padding: 12px 10px; border-radius: 12px; border: 1px dashed var(--line);
-             color: var(--mut); font-size: 12px; text-align: center; line-height: 1.4; }
-  .errcard .ic { font-size: 18px; display: block; margin-bottom: 4px; opacity: .8; }
-
-  /* ----- modo compacto: barras horizontais que preenchem o painel ----- */
-  .bars { display: none; flex-direction: column; gap: 14px; }
+  /* ----- barras de uso ----- */
+  .bars { display: flex; flex-direction: column; gap: 14px; }
   .brow { -webkit-app-region: no-drag; }
   .brow .top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .brow .top svg { width: 17px; height: 17px; flex: none; }
@@ -94,13 +48,38 @@
   .track .mark { position: absolute; top: -3px; width: 2px; height: 16px; margin-left: -1px; border-radius: 1px;
                  background: var(--tick); opacity: .85; transition: left .6s; }
   .brow.hot .fill { animation: pulse 1.6s ease-in-out infinite; }
-  .bars .errcard { text-align: left; }
-  body.compact .grid { display: none; }
-  body.compact .bars { display: flex; }
-  body.compact footer { margin-top: 12px; }
+  .errcard { -webkit-app-region: no-drag; padding: 12px 10px; border-radius: 12px; border: 1px dashed var(--line);
+             color: var(--mut); font-size: 12px; line-height: 1.4; }
+
+  /* ----- tela de configurações (substitui as barras) ----- */
+  .cfgpage { display: none; -webkit-app-region: no-drag; }
+  body.cfg .cfgpage { display: block; }
+  body.cfg .bars, body.cfg .upd, body.cfg footer { display: none; }
+  .ps + .ps { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .ps h3 { margin-bottom: 10px; font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--accent); text-transform: uppercase; }
+  .opt { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  label.opt { cursor: pointer; }
+  .opt + .opt { margin-top: 12px; }
+  .opt b { display: block; font-size: 13px; font-weight: 600; }
+  .opt small { display: block; margin-top: 2px; color: var(--mut); font-size: 11px; line-height: 1.35; }
+  .opt small.ok { color: var(--ok); }
+  .opt small.bad { color: var(--bad); }
+  .opt small.new { color: var(--warn); }
+  .sw { appearance: none; flex: none; width: 38px; height: 22px; border-radius: 11px; background: var(--track); position: relative;
+        cursor: pointer; transition: background .2s; }
+  .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff;
+               box-shadow: 0 1px 3px rgba(0,0,0,.35); transition: transform .2s; }
+  .sw:checked { background: var(--accent); }
+  .sw:checked::after { transform: translateX(16px); }
+  .sw:focus-visible, .act:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .act { flex: none; width: auto; height: 28px; padding: 0 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+         background: transparent; color: var(--fg); border: 1px solid var(--line); }
+  .act:hover { background: var(--track); }
+  .act.pri { background: var(--accent); border-color: transparent; color: #fff; }
+  .act:disabled { opacity: .5; cursor: default; }
 
   /* ----- aviso de atualização ----- */
-  .upd { -webkit-app-region: no-drag; margin-top: 12px; padding: 9px 11px; border-radius: 10px; font-size: 12px;
+  .upd { -webkit-app-region: no-drag; margin-top: 14px; padding: 9px 11px; border-radius: 10px; font-size: 12px;
          background: color-mix(in srgb, var(--accent) 16%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); }
   .upd[hidden] { display: none; }
   .upd .l { display: flex; align-items: center; gap: 8px; }
@@ -113,36 +92,48 @@
   .upd .pb i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
   .upd.err { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
 
-  footer { margin-top: 10px; color: var(--mut); font-size: 11px; text-align: right; }
+  footer { margin-top: 12px; color: var(--mut); font-size: 11px; text-align: right; }
 </style>
 </head>
 <body>
 <div class="card" id="card">
   <header>
-    <b>Limites de uso</b>
+    <b id="title">Limites de uso</b>
     <div class="btns">
       <button id="r" title="Atualizar agora">⟳</button>
-      <button id="c" title="Alternar modo compacto">▭</button>
       <button id="g" title="Configurações">⚙</button>
       <button id="x" class="x" title="Fechar">✕</button>
     </div>
   </header>
-  <div class="pop" id="set" hidden>
-    <label class="opt">
-      <span><b>Minimizar ao fechar</b><small>O ✕ só esconde o painel; a faixa continua na barra.</small></span>
-      <input type="checkbox" id="ctt" class="sw">
-    </label>
-    <button class="act" id="chk">Procurar atualizações</button>
-    <div class="ver num" id="ver"></div>
-  </div>
-  <div class="grid" id="grid"></div>
+
   <div class="bars" id="bars"></div>
+
+  <div class="cfgpage" id="set">
+    <section class="ps">
+      <h3>Janela</h3>
+      <label class="opt">
+        <span><b>Minimizar ao fechar</b></span>
+        <input type="checkbox" id="ctt" class="sw">
+      </label>
+    </section>
+    <section class="ps">
+      <h3>Atualizações</h3>
+      <div class="opt">
+        <span><b class="num" id="ver">LimitBar</b><small id="ustat">Ainda não verificado</small></span>
+        <button class="act" id="chk">Procurar</button>
+      </div>
+      <label class="opt">
+        <span><b>Verificar automaticamente</b><small>Ao abrir e a cada 6 horas.</small></span>
+        <input type="checkbox" id="aut" class="sw">
+      </label>
+    </section>
+  </div>
+
   <div class="upd" id="upd" hidden></div>
   <footer id="foot"></footer>
 </div>
 
 <script>
-const C = 2 * Math.PI * 36; // circunferência do anel (r = 36)
 const SVC = {
   claude: { name: 'Claude', color: 'var(--claude)',
     logo: `<svg viewBox="0 0 24 24"><g stroke="var(--claude)" stroke-width="2.4" stroke-linecap="round">
@@ -153,7 +144,9 @@ const SVC = {
       fill="none" stroke="var(--codex)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` },
 };
 const KEYS = ['claude', 'codex'];
-let data = null, built = {}, shown = {};
+const $ = (id) => document.getElementById(id);
+const hm = (t) => new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+let data = null, lastCheck = null, lastUpdate = { state: 'none' }, updHidden = false;
 
 const statusColor = (p, base) => (p >= 90 ? 'var(--bad)' : p >= 70 ? 'var(--warn)' : base);
 
@@ -166,10 +159,11 @@ function until(ms) {
   return 'reseta em ' + (d ? `${d}d ${h}h` : h ? `${h}h ${m}min` : `${m}min`);
 }
 function clock(ms) {
-  const d = new Date(ms), t = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const d = new Date(ms), t = hm(ms);
   const same = d.toDateString() === new Date().toDateString();
   return same ? `hoje às ${t}` : `${d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })} às ${t}`;
 }
+// ritmo: quanto da janela já passou (onde você "deveria" estar) e a projeção de uso no reset
 function pace(w) {
   if (!w.resetsAt || !w.windowMs) return null;
   const frac = Math.min(1, Math.max(0, 1 - (w.resetsAt - Date.now()) / w.windowMs));
@@ -185,84 +179,9 @@ function tooltip(svcName, w) {
   return l.join('\n');
 }
 
-// número que "conta" até o valor novo
-function countTo(el, to) {
-  const from = parseFloat(el.dataset.v ?? '0'); el.dataset.v = to;
-  const t0 = performance.now(), dur = 700;
-  (function step(t) {
-    const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
-    el.textContent = Math.round(from + (to - from) * e);
-    if (k < 1) requestAnimationFrame(step);
-  })(t0);
-}
-
-function sparkPath(key, idx, windowMs) {
-  const now = Date.now(), t0 = now - windowMs;
-  const pts = (data.history || []).filter((e) => e.t >= t0 && e[key] && e[key][idx] != null)
-    .map((e) => [(e.t - t0) / windowMs * 100, 16 - 1.5 - (e[key][idx] / 100) * 13]);
-  if (pts.length < 2) return { d: 'M0 14.5 H100', flat: true };
-  pts.push([100, pts[pts.length - 1][1]]);
-  return { d: 'M' + pts.map((p) => p.map((n) => n.toFixed(1)).join(' ')).join(' L'), flat: false };
-}
-
-function buildColumn(key, p) {
-  const s = SVC[key];
-  const col = document.createElement('div');
-  col.className = 'col';
-  col.innerHTML = `<div class="svc">${s.logo}<span>${s.name}</span></div>`;
-  const refs = { col, cells: [] };
-  if (!p.ok) {
-    col.insertAdjacentHTML('beforeend', `<div class="errcard"><span class="ic">⚠</span>${p.error}</div>`);
-    return refs;
-  }
-  p.windows.forEach(() => {
-    const cell = document.createElement('div');
-    cell.className = 'cell';
-    cell.innerHTML = `
-      <div class="ring">
-        <svg viewBox="0 0 88 88"><circle class="trk" cx="44" cy="44" r="36"/>
-          <circle class="val" cx="44" cy="44" r="36" stroke-dasharray="${C}" stroke-dashoffset="${C}"/>
-          <line class="tick" x1="44" y1="2" x2="44" y2="11"/></svg>
-        <div class="pct num"><span><span class="n">0</span><small>%</small></span></div>
-      </div>
-      <div class="lbl"></div><div class="cap num"></div>
-      <svg class="spark" viewBox="0 0 100 16" preserveAspectRatio="none"><path/></svg>`;
-    col.appendChild(cell);
-    refs.cells.push({
-      cell, val: cell.querySelector('.val'), tick: cell.querySelector('.tick'), n: cell.querySelector('.n'),
-      lbl: cell.querySelector('.lbl'), cap: cell.querySelector('.cap'), path: cell.querySelector('.spark path'),
-    });
-  });
-  return refs;
-}
-
-function update(key, p) {
-  const s = SVC[key], refs = built[key];
-  if (!p.ok) return;
-  p.windows.forEach((w, i) => {
-    const r = refs.cells[i];
-    if (!r) return;
-    const pct = Math.max(0, Math.min(100, w.percent));
-    const color = statusColor(pct, s.color);
-    requestAnimationFrame(() => { r.val.style.strokeDashoffset = C * (1 - pct / 100); });
-    r.val.style.stroke = color;
-    countTo(r.n, Math.round(pct));
-    r.lbl.textContent = w.label;
-    r.cap.textContent = until(w.resetsAt);
-    r.cell.title = tooltip(s.name, w);
-    r.cell.classList.toggle('hot', pct >= 90);
-    const pc = pace(w);
-    r.tick.style.display = pc ? '' : 'none';
-    if (pc) r.tick.style.transform = `rotate(${pc.frac * 360}deg)`;
-    const sp = sparkPath(key, i, w.windowMs || 5 * 3600e3);
-    r.path.setAttribute('d', sp.d);
-    r.path.setAttribute('class', sp.flat ? 'flat' : '');
-    r.path.style.stroke = color;
-  });
-}
-
+// ---------- barras ----------
 let barsSig = '', barRefs = [];
-function renderCompact() {
+function renderBars() {
   const rows = [];
   KEYS.forEach((k) => {
     const p = data[k];
@@ -270,7 +189,7 @@ function renderCompact() {
     else rows.push({ k, err: p.error });
   });
   const sig = rows.map((r) => (r.err ? 'e:' + r.k + r.err : r.k + r.i)).join('|');
-  const box = document.getElementById('bars');
+  const box = $('bars');
   if (sig !== barsSig) { // estrutura mudou: reconstrói as linhas
     barsSig = sig; barRefs = [];
     box.innerHTML = '';
@@ -278,7 +197,7 @@ function renderCompact() {
       const s = SVC[r.k], el = document.createElement('div');
       if (r.err) {
         el.className = 'errcard';
-        el.innerHTML = `${s.name}: ${r.err}`;
+        el.textContent = `${s.name}: ${r.err}`;
         box.appendChild(el); barRefs.push(null); return;
       }
       el.className = 'brow';
@@ -307,80 +226,95 @@ function renderCompact() {
 
 function render() {
   if (!data) return;
-  const grid = document.getElementById('grid');
-  KEYS.forEach((k, idx) => {
-    const p = data[k], sig = p.ok ? 'ok' + p.windows.length : 'err:' + p.error;
-    if (shown[k] !== sig) { // estrutura mudou: reconstrói só esta coluna
-      const refs = buildColumn(k, p);
-      if (built[k]) grid.replaceChild(refs.col, built[k].col); else grid.appendChild(refs.col);
-      built[k] = refs; shown[k] = sig;
-    }
-    update(k, p);
-  });
-  renderCompact();
-  const hm = (t) => new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  document.getElementById('foot').textContent = data.claude.stale
+  renderBars();
+  $('foot').textContent = data.claude.stale
     ? `Claude de ${hm(data.claude.fetchedAt)} (consulta limitada) · atualizado ${hm(data.updatedAt)}`
-    : 'atualizado ' + new Date(data.updatedAt).toLocaleTimeString('pt-BR');
-  fit();
+    : 'atualizado ' + hm(data.updatedAt);
 }
-function fit() { window.api.resize(document.getElementById('card').offsetHeight); }
-new ResizeObserver(fit).observe(document.getElementById('card'));
 
+// o painel acompanha a altura do conteúdo
+function fit() { window.api.resize($('card').offsetHeight); }
+new ResizeObserver(fit).observe($('card'));
+
+// ---------- configurações ----------
+function setSettingsView(on) {
+  document.body.classList.toggle('cfg', on);
+  $('g').classList.toggle('on', on);
+  $('g').title = on ? 'Voltar' : 'Configurações';
+  $('title').textContent = on ? 'Configurações' : 'Limites de uso';
+}
+
+function lastCheckText() {
+  return lastCheck ? 'Verificado às ' + hm(lastCheck) : 'Ainda não verificado';
+}
+// estado da busca/atualização dentro da tela de configurações
+function renderUpdateStatus(u) {
+  const st = $('ustat'), btn = $('chk'), busy = ['checking', 'downloading', 'installing'].includes(u.state);
+  const set = (txt, cls) => { st.textContent = txt; st.className = cls || ''; };
+  btn.disabled = busy;
+  btn.classList.toggle('pri', u.state === 'available');
+  btn.textContent = u.state === 'checking' ? 'Procurando…' : u.state === 'available' ? (u.canInstall ? 'Atualizar' : 'Ver no GitHub') : 'Procurar';
+  btn.onclick = () => (u.state === 'available' ? window.api.updateInstall() : window.api.updateCheck());
+  if (u.state === 'checking') set('Procurando atualizações…');
+  else if (u.state === 'uptodate') set('✓ Você está na versão mais recente', 'ok');
+  else if (u.state === 'available') set('Nova versão ' + u.version + ' disponível', 'new');
+  else if (u.state === 'downloading') set('Baixando ' + u.version + '…');
+  else if (u.state === 'installing') set('Instalando…');
+  else if (u.state === 'error') set(u.message || 'Falha na atualização', 'bad');
+  else set(lastCheckText());
+}
+
+// ---------- aviso de atualização (na tela das barras) ----------
+function renderUpdate(u) {
+  lastUpdate = u;
+  renderUpdateStatus(u);
+  const el = $('upd');
+  if (u.state === 'available') updHidden = false;
+  // procurando/atualizado só aparecem na tela de configurações; o aviso fica para o que pede ação
+  if (u.state === 'none' || u.state === 'checking' || u.state === 'uptodate' || (updHidden && u.state === 'error')) { el.hidden = true; return; }
+  el.hidden = false; el.classList.toggle('err', u.state === 'error');
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  if (u.state === 'available') {
+    el.innerHTML = `<div class="l">⬆<span>Nova versão <b>${esc(u.version)}</b> disponível</span></div>
+      <div class="bt"><button class="pri" id="ub1">${u.canInstall ? 'Atualizar agora' : 'Ver no GitHub'}</button><button id="ub2">Depois</button></div>`;
+    $('ub1').onclick = () => window.api.updateInstall();
+    $('ub2').onclick = () => window.api.updateDismiss();
+  } else if (u.state === 'downloading') {
+    const p = Math.round((u.progress || 0) * 100);
+    el.innerHTML = `<div class="l">⬇<span>Baixando ${esc(u.version)}… <b class="num">${p}%</b></span></div><div class="pb"><i style="width:${p}%"></i></div>`;
+  } else if (u.state === 'installing') {
+    el.innerHTML = `<div class="l">⟳<span>Instalando… o LimitBar reabre sozinho</span></div>`;
+  } else if (u.state === 'error') {
+    el.innerHTML = `<div class="l">⚠<span>${esc(u.message || 'Falha na atualização')}</span></div>
+      <div class="bt"><button class="pri" id="ub1">Tentar de novo</button><button id="ub2">Fechar</button></div>`;
+    $('ub1').onclick = () => (u.version ? window.api.updateInstall() : window.api.updateCheck());
+    $('ub2').onclick = () => { updHidden = true; el.hidden = true; };
+  }
+}
+
+// ---------- ligações com o processo principal ----------
 window.api.onData((d) => {
   data = d;
   if (d.accent) document.documentElement.style.setProperty('--accent', d.accent);
   render();
 });
 window.api.onSettings((s) => {
-  document.body.classList.toggle('compact', !!s.compact);
-  document.getElementById('ctt').checked = !!s.closeToTray;
-  if (s.version) document.getElementById('ver').textContent = 'LimitBar ' + s.version;
-  fit();
+  $('ctt').checked = !!s.closeToTray;
+  $('aut').checked = s.autoUpdate !== false;
+  if (s.version) $('ver').textContent = 'LimitBar ' + s.version;
+  lastCheck = s.lastCheck || lastCheck;
+  if (lastUpdate.state === 'none') renderUpdateStatus(lastUpdate);
 });
-let updHidden = false;
-function renderUpdate(u) {
-  const el = document.getElementById('upd');
-  if (u.state === 'available') updHidden = false;
-  if (u.state === 'none' || (updHidden && u.state === 'error')) { el.hidden = true; return; }
-  el.hidden = false; el.classList.toggle('err', u.state === 'error');
-  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-  if (u.state === 'available') {
-    el.innerHTML = `<div class="l">⬆<span>Nova versão <b>${esc(u.version)}</b> disponível</span></div>
-      <div class="bt"><button class="pri" id="ub1">${u.canInstall ? 'Atualizar agora' : 'Ver no GitHub'}</button><button id="ub2">Depois</button></div>`;
-    document.getElementById('ub1').onclick = () => window.api.updateInstall();
-    document.getElementById('ub2').onclick = () => window.api.updateDismiss();
-  } else if (u.state === 'downloading') {
-    const p = Math.round((u.progress || 0) * 100);
-    el.innerHTML = `<div class="l">⬇<span>Baixando ${esc(u.version)}… <b class="num">${p}%</b></span></div><div class="pb"><i style="width:${p}%"></i></div>`;
-  } else if (u.state === 'checking') {
-    el.innerHTML = `<div class="l">⟳<span>Procurando atualizações…</span></div>`;
-  } else if (u.state === 'installing') {
-    el.innerHTML = `<div class="l">⟳<span>Instalando… o LimitBar reabre sozinho</span></div>`;
-  } else if (u.state === 'uptodate') {
-    el.innerHTML = `<div class="l">✓<span>Você já está na versão mais recente</span></div>`;
-  } else if (u.state === 'error') {
-    el.innerHTML = `<div class="l">⚠<span>${esc(u.message || 'Falha na atualização')}</span></div>
-      <div class="bt"><button class="pri" id="ub1">Tentar de novo</button><button id="ub2">Fechar</button></div>`;
-    document.getElementById('ub1').onclick = () => (u.version ? window.api.updateInstall() : window.api.updateCheck());
-    document.getElementById('ub2').onclick = () => { updHidden = true; el.hidden = true; };
-  }
-}
 window.api.onUpdate(renderUpdate);
 window.api.onHover((inside) => document.body.classList.toggle('idle', !inside));
 
-document.getElementById('r').onclick = () => window.api.refresh();
-document.getElementById('c').onclick = () => window.api.toggleCompact();
-document.getElementById('x').onclick = () => window.api.closePanel();
-
-// popover de configurações
-const pop = document.getElementById('set');
-document.getElementById('g').onclick = (e) => { e.stopPropagation(); pop.hidden = !pop.hidden; };
-document.addEventListener('click', (e) => { if (!pop.hidden && !pop.contains(e.target)) pop.hidden = true; });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') pop.hidden = true; });
-document.getElementById('ctt').onchange = (e) => window.api.setCloseToTray(e.target.checked);
-document.getElementById('chk').onclick = () => { pop.hidden = true; window.api.updateCheck(); };
-setInterval(() => { if (data) { render(); } }, 30000);
+$('r').onclick = () => window.api.refresh();
+$('x').onclick = () => window.api.closePanel();
+$('g').onclick = () => setSettingsView(!document.body.classList.contains('cfg'));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setSettingsView(false); });
+$('ctt').onchange = (e) => window.api.setCloseToTray(e.target.checked);
+$('aut').onchange = (e) => window.api.setAutoUpdate(e.target.checked);
+setInterval(() => { if (data) render(); }, 30000);
 </script>
 </body>
 </html>

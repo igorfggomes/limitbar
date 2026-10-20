@@ -2,18 +2,18 @@
 
 **Seus limites de 5 horas e semanal do Claude e do Codex, sempre visíveis na barra de tarefas do Windows.**
 
-LimitBar é uma faixa pequena que fica sobre a barra de tarefas mostrando quanto você já usou de cada janela de limite. Um clique abre um painel colado na barra com os detalhes: anéis de progresso, tempo até o reset, ritmo de consumo e histórico.
+LimitBar é uma faixa pequena que fica sobre a barra de tarefas mostrando quanto você já usou de cada janela de limite. Um clique abre um painel colado na barra com os detalhes: barras de progresso, tempo até o reset e ritmo de consumo.
 
 <p align="center">
   <img src="docs/faixa.png" alt="Faixa sobre a barra de tarefas com as quatro porcentagens" height="48">
 </p>
 
-Clique na faixa e o painel abre colado na barra, em **barras** (modo padrão) ou em **anéis**:
+Clique na faixa e o painel abre colado na barra:
 
 <table align="center">
   <tr>
-    <td align="center"><img src="docs/compacto.png" alt="Painel em barras (modo compacto, padrão)" width="340"><br><sub>Barras (padrão)</sub></td>
-    <td align="center"><img src="docs/painel.png" alt="Painel em anéis de progresso" width="340"><br><sub>Anéis</sub></td>
+    <td align="center"><img src="docs/compacto.png" alt="Painel com as quatro barras de uso" width="340"><br><sub>Barras de uso</sub></td>
+    <td align="center"><img src="docs/configuracoes.png" alt="Tela de configurações" width="340"><br><sub>Configurações (botão ⚙)</sub></td>
   </tr>
 </table>
 
@@ -21,9 +21,8 @@ Clique na faixa e o painel abre colado na barra, em **barras** (modo padrão) ou
 
 - **Faixa na barra de tarefas** com as quatro porcentagens (Claude 5h / semanal, Codex 5h / semanal). Arraste pela alça `⋮⋮` para posicioná-la.
 - **Painel que abre colado na barra**, ancorado na faixa, e fecha ao clicar fora (ou fica fixo, se preferir).
-- **Barras de progresso** (modo padrão) ou **anéis** (alterne pelo botão ▭ ou pelo menu), que mudam de cor: normal, amarelo a partir de 70% e vermelho a partir de 90%.
-- **Marcador de ritmo** em cada barra e anel: mostra onde você *deveria* estar naquele ponto da janela. Passando o mouse, aparecem o horário do reset e a projeção de uso até lá.
-- **Minigráfico** do consumo ao longo da janela, na visão em anéis (histórico guardado por 7 dias).
+- **Barras de progresso** que mudam de cor: normal, amarelo a partir de 70% e vermelho a partir de 90%.
+- **Marcador de ritmo** em cada barra: mostra onde você *deveria* estar naquele ponto da janela. Passando o mouse, aparecem o horário do reset e a projeção de uso até lá.
 - Tema claro/escuro automático e fundo de vidro (acrílico) do Windows 11.
 - **Notificações** ao passar de 80% e de 95% de qualquer janela.
 - **Atualização com um clique**: o app avisa quando sai uma versão nova (um ⬆ na faixa e um aviso no painel) e atualiza sozinho.
@@ -86,9 +85,9 @@ Para abrir sem janela de console, dê dois cliques em `iniciar.vbs`.
 |---|---|
 | Clique na faixa | Abre ou fecha o painel de detalhes |
 | Botão ⚙ do painel | **Minimizar ao fechar** (o ✕ só esconde o painel, padrão) e **Procurar atualizações** |
-| Clique direito na faixa | Menu: atualizar, barras/anéis, manter aberto, iniciar com o Windows, procurar atualizações, sair |
+| Clique direito na faixa | Menu: atualizar, minimizar ao fechar, manter aberto, iniciar com o Windows, procurar atualizações, sair |
 | Arrastar a alça `⋮⋮` | Move a faixa na horizontal (a posição é salva) |
-| Mouse sobre um anel | Horário do reset, ritmo esperado e projeção |
+| Mouse sobre uma barra | Horário do reset, ritmo esperado e projeção |
 
 ## Atualizações
 
@@ -98,7 +97,7 @@ O LimitBar consulta as [Releases do GitHub](https://github.com/igorfggomes/limit
 2. clique em **Atualizar agora**: o app baixa o zip, confere o **SHA-256** publicado pelo GitHub, troca os arquivos e **reabre sozinho** (leva cerca de meio minuto);
 3. **Depois** dispensa o aviso daquela versão.
 
-Se algo falhar (download, arquivo corrompido, troca de arquivos), a versão atual é mantida. Pelo botão **⚙** do painel ou pelo menu da faixa (clique direito) você pode **procurar atualizações** na hora; no menu também dá para **desligar a verificação automática**. Suas configurações e o histórico não são tocados.
+Se algo falhar (download, arquivo corrompido, troca de arquivos), a versão atual é mantida. Pelo botão **⚙** do painel ou pelo menu da faixa (clique direito) você pode **procurar atualizações** na hora; no menu também dá para **desligar a verificação automática**. Suas configurações não são tocadas.
 
 A atualização com um clique funciona no app empacotado e instalado em uma pasta onde você pode gravar (como `%LOCALAPPDATA%ProgramsLimitBar` ou a pasta onde extraiu o zip). Em outros casos, o botão abre a página da Release para você baixar manualmente.
 
@@ -111,9 +110,9 @@ A atualização com um clique funciona no app empacotado e instalado em uma past
 ## Estrutura
 
 ```
-main.js        processo principal: janelas, faixa, flyout, histórico, alertas
+main.js        processo principal: janelas, faixa, flyout, alertas
 providers.js   leitura dos dados do Claude e do Codex
-index.html     painel (anéis, minigráficos, modo compacto)
+index.html     painel (barras de uso e configurações)
 dock.html      faixa sobre a barra de tarefas
 preload.js     ponte segura entre a interface e o processo principal
 updater.js     atualização automática (consulta, download, verificação, troca de arquivos)

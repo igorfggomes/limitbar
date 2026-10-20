@@ -5,17 +5,15 @@ const providers = require('./providers');
 const updater = require('./updater');
 
 const REFRESH_MS = 60 * 1000;
-const HISTORY_KEEP_MS = 7 * 86400e3;
-const HISTORY_STEP_MS = 5 * 60e3;
 const WIDTH = 340;
 const ALERT_LEVELS = [80, 95];
 const DOCK_H = 36;
 const DOCK_DEFAULT_OFFSET = 340; // distância da borda direita da tela (área da bandeja/relógio)
 const FLYOUT_MARGIN = 8;
 
-let win, dock, last = null, history = [], hover = true, blurHiddenAt = 0;
-let settings = { compact: true, dockX: null, pinned: false, autoUpdate: true, skipVersion: null, closeToTray: true };
-let update = { state: 'none' }, updateInfo = null;
+let win, dock, last = null, hover = true, blurHiddenAt = 0;
+let settings = { dockX: null, pinned: false, autoUpdate: true, skipVersion: null, closeToTray: true };
+let update = { state: 'none' }, updateInfo = null, lastCheckAt = null;
 const timers = [];
 const alerted = {}; // "serviço/janela" -> maior nível já avisado nesta janela
 
@@ -30,18 +28,6 @@ app.setAppUserModelId('LimitBar'); // nome nas notificações do Windows
 if (process.env.LIMITBAR_USER_DATA) app.setPath('userData', process.env.LIMITBAR_USER_DATA); // só para testes
 
 if (!app.requestSingleInstanceLock()) app.quit();
-
-// ---------- histórico (alimenta os sparklines) ----------
-function recordHistory(claude, codex) {
-  const pick = (p) => (p.ok ? p.windows.map((w) => w.percent) : [null, null]);
-  const entry = { t: Date.now(), claude: pick(claude), codex: pick(codex) };
-  const prev = history[history.length - 1];
-  const same = prev && JSON.stringify(prev.claude) === JSON.stringify(entry.claude) && JSON.stringify(prev.codex) === JSON.stringify(entry.codex);
-  if (!prev || !same || entry.t - prev.t >= HISTORY_STEP_MS) history.push(entry);
-  const cutoff = Date.now() - HISTORY_KEEP_MS;
-  history = history.filter((e) => e.t >= cutoff);
-  writeJson('history.json', history);
-}
 
 // ---------- alertas de 80% e 95% ----------
 function checkAlerts(name, p) {
@@ -62,8 +48,7 @@ function accent() {
 
 async function refresh() {
   const [claude, codex] = await Promise.all([providers.claude(), providers.codex()]);
-  recordHistory(claude, codex);
-  last = { claude, codex, updatedAt: Date.now(), history, accent: accent() };
+  last = { claude, codex, updatedAt: Date.now(), accent: accent() };
   checkAlerts('Claude', claude);
   checkAlerts('Codex', codex);
   [win, dock].forEach((w) => alive(w) && w.webContents.send('data', last));
@@ -155,11 +140,11 @@ function watchTaskbar() {
 }
 
 function sendSettings() {
-  if (alive(win)) win.webContents.send('settings', { compact: settings.compact, closeToTray: settings.closeToTray, version: app.getVersion() });
+  if (alive(win)) win.webContents.send('settings', { closeToTray: settings.closeToTray, autoUpdate: settings.autoUpdate, lastCheck: lastCheckAt, version: app.getVersion() });
 }
 
-function setCompact(v) {
-  settings.compact = v; saveSettings();
+function setAutoUpdate(v) {
+  settings.autoUpdate = !!v; saveSettings();
   sendSettings();
 }
 
@@ -180,6 +165,7 @@ async function checkUpdates(manual = false) {
   if (manual) setUpdate({ state: 'checking' });
   try {
     const info = await updater.check();
+    lastCheckAt = Date.now(); sendSettings();
     if (!info) {
       if (manual) {
         setUpdate({ state: 'uptodate' });
@@ -225,7 +211,6 @@ function dismissUpdate() {
 function showMenu() {
   Menu.buildFromTemplate([
     { label: 'Atualizar agora', click: refresh },
-    { label: 'Barras (modo compacto)', type: 'checkbox', checked: settings.compact, click: (i) => setCompact(i.checked) },
     { label: 'Minimizar ao fechar (✕ só esconde o painel)', type: 'checkbox', checked: settings.closeToTray, click: (i) => setCloseToTray(i.checked) },
     { label: 'Manter aberto ao clicar fora', type: 'checkbox', checked: settings.pinned,
       click: (i) => { settings.pinned = i.checked; saveSettings(); } },
@@ -237,7 +222,7 @@ function showMenu() {
       ? { label: `Atualizar para ${update.version}`, click: installUpdate }
       : { label: 'Procurar atualizações', click: () => checkUpdates(true) },
     { label: 'Verificar atualizações automaticamente', type: 'checkbox', checked: settings.autoUpdate,
-      click: (i) => { settings.autoUpdate = i.checked; saveSettings(); } },
+      click: (i) => setAutoUpdate(i.checked) },
     { type: 'separator' },
     { label: 'Sair', click: () => app.quit() },
   ]).popup({ window: dock });
@@ -245,7 +230,7 @@ function showMenu() {
 
 app.whenReady().then(() => {
   settings = { ...settings, ...readJson('window.json', {}) };
-  history = readJson('history.json', []);
+  try { fs.unlinkSync(file('history.json')); } catch { /* arquivo de uma versão antiga; não é mais usado */ }
 
   win = new BrowserWindow({
     width: WIDTH, height: 360, show: false,
@@ -273,7 +258,7 @@ app.whenReady().then(() => {
   // ✕ do painel: esconde (a faixa continua rodando) ou encerra o app, conforme a configuração
   ipcMain.on('close-panel', () => { if (settings.closeToTray) win.hide(); else app.quit(); });
   ipcMain.on('set-close-to-tray', (_e, v) => setCloseToTray(v));
-  ipcMain.on('toggle-compact', () => setCompact(!settings.compact));
+  ipcMain.on('set-auto-update', (_e, v) => setAutoUpdate(v));
   ipcMain.on('toggle-main', toggle);
   ipcMain.on('dock-menu', showMenu);
   ipcMain.on('update-install', installUpdate);
@@ -301,7 +286,7 @@ app.whenReady().then(() => {
       // o acrílico do Windows não aparece em capturas: usa um fundo escuro equivalente
       await win.webContents.executeJavaScript("document.documentElement.style.background='#1f2026'; document.body.classList.remove('idle')");
       if (process.env.WIDGET_OPEN_SETTINGS) await win.webContents.executeJavaScript("document.getElementById('g').click()");
-      await new Promise((r) => setTimeout(r, 500)); // espera o quadro novo ser pintado
+      await new Promise((r) => setTimeout(r, process.env.WIDGET_OPEN_SETTINGS ? 1500 : 500)); // espera o quadro novo ser pintado
       fs.writeFileSync(process.env.WIDGET_SHOT, (await win.webContents.capturePage()).toPNG());
       fs.writeFileSync(process.env.WIDGET_SHOT + '.dock.png', (await dock.webContents.capturePage()).toPNG());
       fs.writeFileSync(process.env.WIDGET_SHOT + '.pos.txt', JSON.stringify({
