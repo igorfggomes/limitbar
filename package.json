@@ -3,8 +3,18 @@
   "version": "1.0.0",
   "description": "Limites de 5h e semanal do Claude e do Codex na barra de tarefas do Windows",
   "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/igorfggomes/limitbar.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/igorfggomes/limitbar.git"
+  },
   "main": "main.js",
-  "scripts": { "start": "electron ." },
-  "devDependencies": { "electron": "^33.0.0" }
+  "scripts": {
+    "start": "electron .",
+    "package": "node build/package.js",
+    "install_app": "powershell -ExecutionPolicy Bypass -File instalar.ps1"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^33.0.0"
+  }
 }

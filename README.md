@@ -45,9 +45,21 @@ O endpoint do Claude limita consultas (HTTP 429). Por isso o app consulta no má
 
 ## Instalação
 
+### Instalar como programa (recomendado)
+
 ```powershell
 git clone https://github.com/igorfggomes/limitbar.git
 cd limitbar
+powershell -ExecutionPolicy Bypass -File instalar.ps1
+```
+
+O script empacota o app, instala em `%LOCALAPPDATA%\Programs\LimitBar` e cria atalhos na Área de Trabalho e no Menu Iniciar. Depois é só abrir o **LimitBar** como qualquer programa (o Node.js só é necessário para essa etapa). Para abrir junto com o Windows, clique com o botão direito na faixa e marque "Iniciar com o Windows".
+
+Para atualizar, rode o `instalar.ps1` de novo.
+
+### Rodar direto do código
+
+```powershell
 npm install
 npm start
 ```
@@ -77,6 +89,8 @@ providers.js   leitura dos dados do Claude e do Codex
 index.html     painel (anéis, minigráficos, modo compacto)
 dock.html      faixa sobre a barra de tarefas
 preload.js     ponte segura entre a interface e o processo principal
+instalar.ps1   instala como programa (exe + atalhos)
+build/         ícone e script de empacotamento
 ```
 
 ## Licença

@@ -23,6 +23,8 @@ const readJson = (n, d) => { try { return JSON.parse(fs.readFileSync(file(n), 'u
 const writeJson = (n, v) => { try { fs.writeFileSync(file(n), JSON.stringify(v)); } catch { /* ignora */ } };
 const saveSettings = () => writeJson('window.json', settings);
 
+app.setAppUserModelId('LimitBar'); // nome nas notificações do Windows
+
 if (!app.requestSingleInstanceLock()) app.quit();
 
 // ---------- histórico (alimenta os sparklines) ----------
