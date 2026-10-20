@@ -8,12 +8,13 @@
     --line: rgba(255,255,255,.10); --tick: #fff;
     --ok: #4ade80; --warn: #facc15; --bad: #f87171; --claude: #e8845f; --codex: #19c39a;
     --accent: #d97757;
+    --head: #f0a27e; /* títulos das seções: laranja claro, com bom contraste no fundo escuro */
   }
   @media (prefers-color-scheme: light) {
     :root {
       --bg: rgba(255,255,255,.55); --fg: #18181b; --mut: #52525b; --track: rgba(0,0,0,.10);
       --line: rgba(0,0,0,.10); --tick: #18181b;
-      --ok: #16a34a; --warn: #ca8a04; --bad: #dc2626; --claude: #c2542d; --codex: #0d8a6b;
+      --ok: #16a34a; --warn: #ca8a04; --bad: #dc2626; --claude: #c2542d; --codex: #0d8a6b; --head: #a8431c;
     }
   }
   * { box-sizing: border-box; margin: 0; }
@@ -61,7 +62,7 @@
   .ps + .ps { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
   /* seções recolhíveis: título + seta; todas começam recolhidas para a tela não ficar longa */
   details.ps > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
-    padding: 3px 2px; border-radius: 6px; font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--accent); text-transform: uppercase; }
+    padding: 3px 2px; border-radius: 6px; font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--head); text-transform: uppercase; }
   details.ps > summary::-webkit-details-marker { display: none; }
   details.ps > summary::after { content: ''; width: 7px; height: 7px; margin-right: 4px; flex: none;
     border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-2px);

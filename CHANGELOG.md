@@ -7,6 +7,7 @@ O fluxo de publicação usa a seção da versão deste arquivo como texto da Rel
 
 ### Melhorias
 - **Configurações em seções recolhíveis**: cada seção (Janela, Alertas, Janela de 5h, Claude e Atualizações) tem uma seta para expandir e recolher, e **todas começam recolhidas**. A tela passa de cerca de 870 px para 230 px, e o que você abre rola quando a tela é baixa.
+- Títulos das seções em laranja claro (e laranja escuro no tema claro), com contraste bem maior que o azul de destaque do Windows.
 
 ## 1.4.0 — 2026-10-20
 
