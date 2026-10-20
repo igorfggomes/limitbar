@@ -58,10 +58,14 @@
              color: var(--mut); font-size: 12px; line-height: 1.4; }
 
   /* ----- tela de configurações (substitui as barras) ----- */
-  /* o máximo vem do processo principal (--maxh): em telas baixas, só as configurações rolam */
-  .cfgpage { display: none; -webkit-app-region: no-drag; max-height: calc(var(--maxh, 99999px) - 72px); overflow-y: auto; margin-right: -6px; padding-right: 6px; }
-  .cfgpage::-webkit-scrollbar { width: 6px; }
-  .cfgpage::-webkit-scrollbar-thumb { background: var(--track); border-radius: 3px; }
+  /* As configurações têm altura própria (--cfg-max) e rolam por dentro, com o cabeçalho fixo; em telas baixas
+     vale o menor entre esse limite e o espaço da tela (--maxh, que vem do processo principal). */
+  :root { --cfg-max: 420px; }
+  .cfgpage { display: none; -webkit-app-region: no-drag; max-height: min(var(--cfg-max), calc(var(--maxh, 99999px) - 72px));
+             overflow-y: auto; overscroll-behavior: contain; margin-right: -8px; padding-right: 8px; }
+  .cfgpage::-webkit-scrollbar { width: 8px; }
+  .cfgpage::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--fg) 32%, transparent); border-radius: 4px; }
+  .cfgpage::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--fg) 50%, transparent); }
   body.cfg .cfgpage { display: block; }
   body.cfg .bars, body.cfg .upd, body.cfg footer { display: none; }
   .ps + .ps { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }

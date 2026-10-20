@@ -138,6 +138,25 @@ app.whenReady().then(async () => {
     assert.ok((await calls()).includes('hidePanel'));
   });
 
+  await check('configurações: com todas as seções abertas a altura fica limitada e o conteúdo rola por dentro', async () => {
+    await key(',', { ctrlKey: true });
+    await js("document.querySelectorAll('details.ps').forEach((d) => { d.open = true; })");
+    await wait(150);
+    const m = await js(`(() => { const p = document.getElementById('set'); return { card: document.getElementById('card').offsetHeight,
+      client: p.clientHeight, scroll: p.scrollHeight, overflowY: getComputedStyle(p).overflowY, header: document.querySelector('header').getBoundingClientRect().top }; })()`);
+    assert.ok(m.card <= 520, `o painel das configurações tem ${m.card}px; o limite é 520`);
+    assert.ok(m.scroll > m.client + 100, `o conteúdo (${m.scroll}px) deveria ser bem maior que a área visível (${m.client}px)`);
+    assert.equal(m.overflowY, 'auto');
+    // rolar por dentro não mexe no cabeçalho
+    await js("document.getElementById('set').scrollTop = 200");
+    await wait(60);
+    assert.equal(await js("document.querySelector('header').getBoundingClientRect().top"), m.header);
+    assert.ok(await js("document.getElementById('set').scrollTop") > 0, 'rolou');
+    // volta ao estado inicial para os próximos testes
+    await js("document.getElementById('set').scrollTop = 0; document.querySelectorAll('details.ps').forEach((d) => { d.open = false; })");
+    await key('Escape');
+  });
+
   await check('configurações: todas as seções começam recolhidas', async () => {
     assert.equal(await js("document.querySelectorAll('details.ps').length"), 6);
     assert.equal(await js("document.querySelectorAll('details.ps[open]').length"), 0);

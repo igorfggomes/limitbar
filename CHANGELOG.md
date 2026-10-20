@@ -6,7 +6,7 @@ O fluxo de publicação usa a seção da versão deste arquivo como texto da Rel
 ## 1.4.1 — 2026-10-20
 
 ### Melhorias
-- **Configurações em seções recolhíveis**: cada seção (Janela, Alertas, Janela de 5h, Claude e Atualizações) tem uma seta para expandir e recolher, e **todas começam recolhidas**. A tela passa de cerca de 870 px para 230 px, e o que você abre rola quando a tela é baixa.
+- **Configurações em seções recolhíveis**: cada seção (Janela, Alertas, Janela de 5h, Claude e Atualizações) tem uma seta para expandir e recolher, e **todas começam recolhidas**. A tela passa de cerca de 870 px para 230 px. Com todas abertas, a altura é limitada (cerca de 500 px) e o conteúdo rola por dentro, com o cabeçalho sempre visível.
 - Títulos das seções em laranja claro (e laranja escuro no tema claro), com contraste bem maior que o azul de destaque do Windows.
 
 ### Tema
