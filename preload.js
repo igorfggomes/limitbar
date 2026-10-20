@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('api', {
   onSettings: (cb) => ipcRenderer.on('settings', (_e, s) => cb(s)),
   refresh: () => ipcRenderer.send('refresh'),
   closePanel: () => ipcRenderer.send('close-panel'),
+  hidePanel: () => ipcRenderer.send('hide-panel'),
   setCloseToTray: (v) => ipcRenderer.send('set-close-to-tray', v),
   setAutoUpdate: (v) => ipcRenderer.send('set-auto-update', v),
   setAlerts: (patch) => ipcRenderer.send('set-alerts', patch),

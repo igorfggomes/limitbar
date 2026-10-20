@@ -2,6 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<meta name="color-scheme" content="dark light">
+<title>LimitBar</title>
 <style>
   :root {
     --bg: rgba(20,20,24,.55); --fg: #f4f4f5; --mut: #a1a1aa; --track: rgba(255,255,255,.12);
@@ -29,8 +31,8 @@
   header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   header b { font-size: 11px; letter-spacing: .08em; color: var(--mut); text-transform: uppercase; }
   .btns { -webkit-app-region: no-drag; display: flex; gap: 2px; }
-  button { background: none; border: 0; color: var(--mut); cursor: pointer; width: 24px; height: 22px;
-           border-radius: 6px; font-size: 13px; line-height: 1; }
+  button { background: none; border: 0; color: var(--mut); cursor: pointer; width: 28px; height: 28px;
+           border-radius: 6px; font-size: 14px; line-height: 1; }
   button:hover { color: var(--fg); background: var(--track); }
   button.on { color: var(--fg); background: var(--track); }
   button.x:hover { background: var(--bad); color: #fff; }
@@ -43,7 +45,7 @@
   .brow .top svg { width: 17px; height: 17px; flex: none; }
   .brow .nm { font-weight: 600; font-size: 13px; }
   .brow .rs { color: var(--mut); font-size: 11px; margin-left: auto; }
-  .brow .pc { font-weight: 700; font-size: 17px; min-width: 46px; text-align: right; }
+  .brow .pc { font-weight: 700; font-size: 17px; min-width: 66px; text-align: right; }
   .track { position: relative; height: 10px; border-radius: 5px; background: var(--track); }
   .track .fill { height: 100%; width: 0; border-radius: 5px; transition: width .7s cubic-bezier(.2,.8,.2,1), background .4s; }
   .track .mark { position: absolute; top: -3px; width: 2px; height: 16px; margin-left: -1px; border-radius: 1px;
@@ -84,12 +86,12 @@
   .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff;
                box-shadow: 0 1px 3px rgba(0,0,0,.35); transition: transform .2s; }
   .sw:checked { background: var(--accent); }
-  .sw:checked::after { transform: translateX(16px); }
+  .sw:checked::after { transform: translateX(16px); background: var(--on-accent, #fff); }
   .sw:focus-visible, .act:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .act { flex: none; width: auto; height: 28px; padding: 0 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
          background: transparent; color: var(--fg); border: 1px solid var(--line); }
   .act:hover { background: var(--track); }
-  .act.pri { background: var(--accent); border-color: transparent; color: #fff; }
+  .act.pri { background: var(--accent); border-color: transparent; color: var(--on-accent, #fff); }
   .act:disabled { opacity: .5; cursor: default; }
 
   /* ----- aviso de esgotamento e erros claros ----- */
@@ -97,6 +99,15 @@
   .risk.bad { color: var(--bad); }
   .risk[hidden] { display: none; }
   .errcard b { display: block; margin-bottom: 2px; color: var(--fg); font-size: 13px; }
+  .errcard .act { display: block; height: 26px; margin-top: 10px; padding: 0 12px; }
+
+  /* ----- estados de carregamento e atualização ----- */
+  .sk { animation: pulse 1.5s ease-in-out infinite; }
+  .sk .skl { height: 14px; width: 55%; margin-bottom: 10px; border-radius: 4px; background: var(--track); }
+  .sk .skb { height: 10px; border-radius: 5px; background: var(--track); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  button.spin #ri { display: inline-block; animation: spin .8s linear infinite; }
+  button:disabled { opacity: .6; cursor: default; }
 
   /* ----- boas-vindas (primeira abertura) ----- */
   .welcome { -webkit-app-region: no-drag; margin-bottom: 14px; padding: 12px; border-radius: 12px;
@@ -109,10 +120,11 @@
   /* ----- seleção de níveis e serviços ----- */
   .opt.col { display: block; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
-  .chip { width: auto; height: 26px; padding: 0 11px; border-radius: 13px; border: 1px solid var(--line); background: transparent;
+  .chip { width: auto; height: 28px; padding: 0 12px; border-radius: 14px; border: 1px solid var(--line); background: transparent;
           color: var(--mut); font-size: 12px; font-weight: 600; }
   .chip:hover { color: var(--fg); background: var(--track); }
-  .chip[aria-pressed="true"] { background: var(--accent); border-color: transparent; color: #fff; }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: transparent; color: var(--on-accent, #fff); }
+  .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .grp.off { opacity: .4; pointer-events: none; }
   .kastat { margin-top: 3px; color: var(--mut); font-size: 11px; line-height: 1.45; font-weight: 400; }
   .kastat div + div { margin-top: 2px; }
@@ -128,13 +140,19 @@
   .upd .l span { flex: 1; }
   .upd .bt { display: flex; gap: 6px; margin-top: 8px; }
   .upd button { width: auto; height: 24px; padding: 0 11px; font-size: 12px; font-weight: 600; background: var(--track); color: var(--fg); }
-  .upd button.pri { background: var(--accent); color: #fff; }
+  .upd button.pri { background: var(--accent); color: var(--on-accent, #fff); }
   .upd button:hover { filter: brightness(1.15); }
   .upd .pb { margin-top: 8px; height: 5px; border-radius: 3px; background: var(--track); overflow: hidden; }
   .upd .pb i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
   .upd.err { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
 
-  footer { margin-top: 12px; color: var(--mut); font-size: 11px; text-align: right; }
+  footer { margin-top: 12px; color: var(--mut); font-size: 11px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  footer .legend i { display: inline-block; width: 2px; height: 12px; margin-right: 6px; vertical-align: -2px; background: var(--tick); opacity: .85; border-radius: 1px; }
+
+  /* quem pede menos movimento no Windows não vê animações nem transições */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  }
 </style>
 </head>
 <body>
@@ -142,9 +160,9 @@
   <header>
     <b id="title">Limites de uso</b>
     <div class="btns">
-      <button id="r" title="Atualizar agora">⟳</button>
-      <button id="g" title="Configurações">⚙</button>
-      <button id="x" class="x" title="Fechar">✕</button>
+      <button id="r" type="button" title="Atualizar agora (F5)" aria-label="Atualizar agora"><span id="ri" aria-hidden="true">⟳</span></button>
+      <button id="g" type="button" title="Configurações (Ctrl+,)" aria-label="Configurações" aria-pressed="false"><span aria-hidden="true">⚙</span></button>
+      <button id="x" type="button" class="x" title="Fechar (Esc)" aria-label="Fechar o painel"><span aria-hidden="true">✕</span></button>
     </div>
   </header>
 
@@ -155,7 +173,12 @@
     <button class="act pri" id="wl-ok">Entendi</button>
   </div>
 
-  <div class="bars" id="bars"></div>
+  <div class="bars" id="bars" aria-busy="true">
+    <div class="brow sk" aria-hidden="true"><div class="skl"></div><div class="skb"></div></div>
+    <div class="brow sk" aria-hidden="true"><div class="skl"></div><div class="skb"></div></div>
+    <div class="brow sk" aria-hidden="true"><div class="skl"></div><div class="skb"></div></div>
+    <div class="brow sk" aria-hidden="true"><div class="skl"></div><div class="skb"></div></div>
+  </div>
 
   <div class="cfgpage" id="set">
     <details class="ps">
@@ -218,7 +241,7 @@
       <summary>Atualizações</summary>
       <div class="pbody">
       <div class="opt">
-        <span><b class="num" id="ver">LimitBar</b><small id="ustat">Ainda não verificado</small></span>
+        <span><b class="num" id="ver">LimitBar</b><small id="ustat" aria-live="polite">Ainda não verificado</small></span>
         <button class="act" id="chk">Procurar</button>
       </div>
       <label class="opt">
@@ -229,8 +252,8 @@
     </details>
   </div>
 
-  <div class="upd" id="upd" hidden></div>
-  <footer id="foot"></footer>
+  <div class="upd" id="upd" role="status" aria-live="polite" hidden></div>
+  <footer id="foot"><span class="legend" aria-hidden="true" title="Onde você deveria estar neste ponto da janela"><i></i>ritmo esperado</span><span id="foottxt" aria-live="polite">Carregando…</span></footer>
 </div>
 
 <script src="lib/pace.js"></script>
@@ -248,6 +271,29 @@ const KEYS = ['claude', 'codex'];
 const $ = (id) => document.getElementById(id);
 const hm = (t) => new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 let data = null, lastCheck = null, lastUpdate = { state: 'none' }, updHidden = false;
+
+// texto sobre o destaque do Windows: branco só se tiver contraste de leitura (4,5:1); senão, texto escuro
+function setAccent(hex) {
+  document.documentElement.style.setProperty('--accent', hex);
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  const L = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  document.documentElement.style.setProperty('--on-accent', 1.05 / (L + 0.05) >= 4.5 ? '#ffffff' : '#111114');
+}
+
+// atualização pedida por você: o ⟳ gira e o rodapé diz "Atualizando…" (por pelo menos 0,6 s, para dar para perceber)
+let refreshing = false, refreshStart = 0, refreshTimer = null;
+function doRefresh() {
+  if (refreshing) return;
+  refreshing = true; refreshStart = Date.now();
+  $('r').classList.add('spin'); $('r').disabled = true;
+  $('foottxt').textContent = 'Atualizando…';
+  clearTimeout(refreshTimer); refreshTimer = setTimeout(endRefresh, 12000); // se nada chegar, volta ao normal
+  window.api.refresh();
+}
+function endRefresh() {
+  clearTimeout(refreshTimer);
+  setTimeout(() => { refreshing = false; $('r').classList.remove('spin'); $('r').disabled = false; render(); }, Math.max(0, 600 - (Date.now() - refreshStart)));
+}
 
 const statusColor = (p, base) => (p >= 90 ? 'var(--bad)' : p >= 70 ? 'var(--warn)' : base);
 
@@ -296,25 +342,29 @@ function renderBars() {
   });
   const sig = rows.map((r) => (r.err ? 'e:' + r.k + r.err : r.k + r.i)).join('|');
   const box = $('bars');
+  box.removeAttribute('aria-busy');
   if (sig !== barsSig) { // estrutura mudou: reconstrói as linhas
     barsSig = sig; barRefs = [];
     box.innerHTML = '';
     rows.forEach((r) => {
       const s = SVC[r.k], el = document.createElement('div');
       if (r.err) {
-        el.className = 'errcard';
+        el.className = 'errcard'; el.setAttribute('role', 'alert');
         const name = document.createElement('b');
         name.textContent = s.name;
-        el.append(name, r.err); // texto puro: a mensagem diz o que fazer
+        const retry = document.createElement('button');
+        retry.type = 'button'; retry.className = 'act'; retry.textContent = 'Tentar de novo';
+        retry.onclick = doRefresh;
+        el.append(name, r.err, retry); // texto puro: a mensagem diz o que fazer; o botão tenta de novo
         box.appendChild(el); barRefs.push(null); return;
       }
-      el.className = 'brow';
-      el.innerHTML = `<div class="top">${s.logo}<span class="nm">${s.name} · ${r.w.label}</span>
+      el.className = 'brow'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', `${s.name} · ${r.w.label}`);
+      el.innerHTML = `<div class="top"><span aria-hidden="true">${s.logo}</span><span class="nm">${s.name} · ${r.w.label}</span>
         <span class="rs num"></span><span class="pc num">0%</span></div>
-        <div class="track"><div class="fill"></div><i class="mark"></i></div>
+        <div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="${s.name} · ${r.w.label}"><div class="fill"></div><i class="mark" aria-hidden="true"></i></div>
         <div class="risk" hidden></div>`;
       box.appendChild(el);
-      barRefs.push({ el, fill: el.querySelector('.fill'), mark: el.querySelector('.mark'),
+      barRefs.push({ el, track: el.querySelector('.track'), fill: el.querySelector('.fill'), mark: el.querySelector('.mark'),
         rs: el.querySelector('.rs'), pc: el.querySelector('.pc'), risk: el.querySelector('.risk') });
     });
   }
@@ -324,8 +374,12 @@ function renderBars() {
     const pct = Math.max(0, Math.min(100, r.w.percent)), s = SVC[r.k], pc = pace(r.w), risk = riskOf(r.w);
     requestAnimationFrame(() => { b.fill.style.width = pct + '%'; });
     b.fill.style.background = statusColor(pct, s.color);
-    b.pc.textContent = Math.round(pct) + '%';
+    // a partir de 90% o ⚠ reforça a cor (quem não distingue laranja de vermelho também percebe)
+    b.pc.textContent = (pct >= 90 ? '⚠ ' : '') + Math.round(pct) + '%';
+    b.pc.title = pct >= 90 ? 'Perto do limite' : '';
     b.rs.textContent = until(r.w.resetsAt);
+    b.track.setAttribute('aria-valuenow', Math.round(pct));
+    b.track.setAttribute('aria-valuetext', `${Math.round(pct)}%, ${until(r.w.resetsAt)}`);
     b.mark.style.display = pc ? '' : 'none';
     if (pc) b.mark.style.left = pc.frac * 100 + '%';
     b.risk.hidden = !risk;
@@ -333,12 +387,14 @@ function renderBars() {
     b.el.title = tooltip(s.name, r.w);
     b.el.classList.toggle('hot', pct >= 90);
   });
+  document.querySelector('footer .legend').style.visibility = barRefs.some(Boolean) ? '' : 'hidden';
 }
 
 function render() {
   if (!data) return;
   renderBars();
-  $('foot').textContent = data.claude.stale
+  if (refreshing) return; // o rodapé mostra "Atualizando…" até a leitura chegar
+  $('foottxt').textContent = data.claude.stale
     ? `Claude de ${hm(data.claude.fetchedAt)} (consulta limitada) · atualizado ${hm(data.updatedAt)}`
     : 'atualizado ' + hm(data.updatedAt);
 }
@@ -351,7 +407,9 @@ new ResizeObserver(fit).observe($('card'));
 function setSettingsView(on) {
   document.body.classList.toggle('cfg', on);
   $('g').classList.toggle('on', on);
-  $('g').title = on ? 'Voltar' : 'Configurações';
+  $('g').title = on ? 'Voltar (Esc)' : 'Configurações (Ctrl+,)';
+  $('g').setAttribute('aria-label', on ? 'Voltar às barras de uso' : 'Configurações');
+  $('g').setAttribute('aria-pressed', String(on));
   $('title').textContent = on ? 'Configurações' : 'Limites de uso';
 }
 
@@ -406,8 +464,9 @@ function renderUpdate(u) {
 // ---------- ligações com o processo principal ----------
 window.api.onData((d) => {
   data = d;
-  if (d.accent) document.documentElement.style.setProperty('--accent', d.accent);
+  if (d.accent) setAccent(d.accent);
   render();
+  if (refreshing) endRefresh();
 });
 let cfg = null; // últimas configurações recebidas
 const LEVEL_CHOICES = [50, 70, 80, 90, 95];
@@ -462,10 +521,15 @@ window.api.onSettings((s) => {
 window.api.onUpdate(renderUpdate);
 window.api.onHover((inside) => document.body.classList.toggle('idle', !inside));
 
-$('r').onclick = () => window.api.refresh();
+$('r').onclick = doRefresh;
 $('x').onclick = () => window.api.closePanel();
 $('g').onclick = () => setSettingsView(!document.body.classList.contains('cfg'));
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setSettingsView(false); });
+// teclado: Esc volta/fecha, F5 atualiza, Ctrl+, abre as configurações
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { if (document.body.classList.contains('cfg')) setSettingsView(false); else window.api.hidePanel(); }
+  else if (e.key === 'F5' || (e.ctrlKey && (e.key === 'r' || e.key === 'R'))) { e.preventDefault(); doRefresh(); }
+  else if (e.ctrlKey && e.key === ',') { e.preventDefault(); setSettingsView(true); }
+});
 $('ctt').onchange = (e) => window.api.setCloseToTray(e.target.checked);
 $('aut').onchange = (e) => window.api.setAutoUpdate(e.target.checked);
 $('st').onchange = (e) => window.api.setAutostart(e.target.checked);

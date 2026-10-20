@@ -9,6 +9,17 @@ O fluxo de publicação usa a seção da versão deste arquivo como texto da Rel
 - **Configurações em seções recolhíveis**: cada seção (Janela, Alertas, Janela de 5h, Claude e Atualizações) tem uma seta para expandir e recolher, e **todas começam recolhidas**. A tela passa de cerca de 870 px para 230 px, e o que você abre rola quando a tela é baixa.
 - Títulos das seções em laranja claro (e laranja escuro no tema claro), com contraste bem maior que o azul de destaque do Windows.
 
+### Usabilidade e acessibilidade
+- **Feedback de estado**: esqueleto de carregamento enquanto a primeira leitura não chega; ao atualizar, o ⟳ gira, o botão fica desabilitado e o rodapé diz "Atualizando…".
+- **Leitores de tela**: botões de ícone com nome, cada barra é um `progressbar` com valor e texto ("44%, reseta em 3h 36min"), avisos de atualização anunciados sem roubar o foco.
+- **Não depende só de cor**: a partir de 90% aparece um ⚠ ao lado do percentual.
+- **Reconhecimento**: legenda do traço branco ("ritmo esperado") no rodapé.
+- **Erro com saída**: cada cartão de erro tem o botão "Tentar de novo".
+- **Teclado**: Esc fecha o painel (ou volta das configurações), F5 atualiza, Ctrl+, abre as configurações.
+- **Notificações**: clicar numa notificação do Windows abre o painel.
+- **Cor do texto sobre o destaque do Windows** calculada pelo contraste (nunca branco fixo sobre um destaque claro).
+- Alvos de clique maiores (28 px), foco visível em todos os controles e respeito a "reduzir movimento" do Windows.
+
 ## 1.4.0 — 2026-10-20
 
 ### Novidades
@@ -25,7 +36,7 @@ O fluxo de publicação usa a seção da versão deste arquivo como texto da Rel
 - Não aumenta o limite: só muda quando as janelas começam, e cada disparo gasta um pouco do limite semanal.
 
 ### Por trás
-- Testes de mutação para as travas e para a limpeza da janela automática; 119 testes automáticos.
+- Testes de mutação para as travas e para a limpeza da janela automática; 122 testes automáticos e 17 verificações de interface (`npm run test:ui`).
 - Validada em uso real com Claude e Codex: custo medido de 0% a 1%; no Codex, o disparo criou a janela.
 
 ## 1.3.0 — 2026-10-20

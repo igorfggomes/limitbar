@@ -98,6 +98,15 @@ Para abrir sem janela de console, dê dois cliques em `iniciar.vbs`.
 | Arrastar a alça `⋮⋮` | Move a faixa na horizontal (a posição é salva) |
 | Mouse sobre uma barra | Horário do reset, ritmo esperado e projeção |
 
+## Usabilidade e acessibilidade
+
+- **Feedback**: esqueleto de carregamento no início; ao atualizar, o ⟳ gira e o rodapé mostra "Atualizando…".
+- **Teclado**: `Esc` fecha o painel (ou volta das configurações), `F5` atualiza, `Ctrl+,` abre as configurações. Todos os controles têm foco visível.
+- **Leitores de tela**: botões com nome, barras como `progressbar` com valor e texto, avisos anunciados sem tirar o foco.
+- **Não só cor**: a partir de 90% aparece um ⚠, e o marcador de ritmo tem legenda no rodapé.
+- **Erros com saída**: cada erro diz o que fazer e traz o botão "Tentar de novo". Clicar numa notificação do Windows abre o painel.
+- **Contraste e movimento**: títulos com contraste acima de 4,5:1 nos dois temas, texto sobre o destaque do Windows escolhido pelo contraste, e animações desligadas se você pediu "reduzir movimento" no Windows.
+
 ## Janela de 5h automática (opcional)
 
 As janelas de 5 horas só começam na primeira mensagem. Com **⚙ → Janela de 5h → Iniciar a janela sozinho**, o LimitBar detecta que a janela de um serviço está parada (sem horário de reset) e envia **uma mensagem mínima** para a próxima começar, para você sempre ter uma janela em andamento, 24 horas por dia. Funciona para o Claude e para o Codex, e você escolhe para quais.
@@ -169,6 +178,7 @@ build/         ícone e script de empacotamento
 ```powershell
 npm install
 npm test        # testes automáticos (usam só o executor nativo do Node)
+npm run test:ui # 17 verificações da interface num Electron oculto (precisa do Electron instalado)
 npm start       # roda o app direto do código
 ```
 

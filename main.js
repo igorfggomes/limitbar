@@ -35,6 +35,13 @@ if (process.env.LIMITBAR_USER_DATA) app.setPath('userData', process.env.LIMITBAR
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
+// Notificação do Windows: clicar nela abre o painel (em vez de só sumir)
+function notify(title, body) {
+  const n = new Notification({ title, body });
+  n.on('click', () => { if (alive(win)) openFlyout(); });
+  n.show();
+}
+
 function accent() {
   try { return '#' + systemPreferences.getAccentColor().slice(0, 6); } catch { return '#d97757'; }
 }
@@ -42,12 +49,13 @@ function accent() {
 async function refresh() {
   let claude, codex;
   if (process.env.LIMITBAR_FAKE_DATA) { // só para capturas de tela e testes manuais
+    if (process.env.LIMITBAR_FAKE_DELAY) await new Promise((r) => setTimeout(r, Number(process.env.LIMITBAR_FAKE_DELAY)));
     try { ({ claude, codex } = JSON.parse(fs.readFileSync(process.env.LIMITBAR_FAKE_DATA, 'utf8'))); } catch { /* usa os dados reais */ }
   }
   if (!claude) [claude, codex] = await Promise.all([providers.claude(), providers.codex()]);
   last = { claude, codex, updatedAt: Date.now(), accent: accent() };
   for (const [key, name, reading] of [['claude', 'Claude', claude], ['codex', 'Codex', codex]]) {
-    alerts.evaluate(key, name, reading, settings.alerts).forEach((n) => new Notification({ title: n.title, body: n.body }).show());
+    alerts.evaluate(key, name, reading, settings.alerts).forEach((n) => notify(n.title, n.body));
   }
   [win, dock].forEach((w) => alive(w) && w.webContents.send('data', last));
   // janela de 5h parada? (não roda com dados simulados: lá os dados não são de verdade)
@@ -250,7 +258,7 @@ async function checkUpdates(manual = false) {
     updateInfo = info;
     const novo = update.version !== info.version;
     setUpdate({ state: 'available', version: info.version, canInstall: updater.canSelfUpdate() && !!info.assetUrl });
-    if (novo) new Notification({ title: `LimitBar ${info.version} disponível`, body: 'Abra o painel para atualizar com um clique.' }).show();
+    if (novo) notify(`LimitBar ${info.version} disponível`, 'Clique para abrir o painel e atualizar.');
     if (process.env.LIMITBAR_AUTO_APPLY) installUpdate(); // só para testes
   } catch (e) {
     if (manual) setUpdate({ state: 'error', message: 'Não foi possível verificar: ' + e.message });
@@ -309,7 +317,7 @@ app.whenReady().then(() => {
   keepAlive = keepAliveLib.createKeepAlive({
     runCommand: (svc) => cli.run(svc),
     readFresh: (svc) => (svc === 'claude' ? providers.claude({ force: true }) : providers.codex()),
-    notify: (n) => new Notification({ title: n.title, body: n.body }).show(),
+    notify: (n) => notify(n.title, n.body),
     store: { load: () => readJson('keepalive.json', { attempts: [], disabled: {} }), save: (s) => writeJson('keepalive.json', s) },
   });
   // quem já usava o app antes das boas-vindas existirem não precisa vê-las
@@ -342,6 +350,7 @@ app.whenReady().then(() => {
 
   ipcMain.on('refresh', refresh);
   // ✕ do painel: esconde (a faixa continua rodando) ou encerra o app, conforme a configuração
+  ipcMain.on('hide-panel', () => { if (alive(win)) win.hide(); }); // Esc: só esconde o painel
   ipcMain.on('close-panel', () => { if (settings.closeToTray) win.hide(); else app.quit(); });
   ipcMain.on('set-close-to-tray', (_e, v) => setCloseToTray(v));
   ipcMain.on('set-auto-update', (_e, v) => setAutoUpdate(v));
