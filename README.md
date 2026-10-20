@@ -8,14 +8,17 @@ LimitBar é uma faixa pequena que fica sobre a barra de tarefas mostrando quanto
   <img src="docs/faixa.png" alt="Faixa sobre a barra de tarefas com as quatro porcentagens" height="48">
 </p>
 
-Clique na faixa e o painel abre colado na barra:
+Clique na faixa e o painel abre colado na barra, com as barras de uso e o aviso de ritmo. O ⚙ abre as configurações e, na primeira abertura, o LimitBar explica o que fazer se faltar o Claude Code ou o Codex:
 
 <table align="center">
   <tr>
-    <td align="center"><img src="docs/compacto.png" alt="Painel com as quatro barras de uso" width="340"><br><sub>Barras de uso</sub></td>
-    <td align="center"><img src="docs/configuracoes.png" alt="Tela de configurações" width="340"><br><sub>Configurações (botão ⚙)</sub></td>
+    <td align="center" valign="top"><img src="docs/barras.png" alt="Painel com as quatro barras de uso e o aviso de que o limite acaba no ritmo atual" width="270"><br><sub><b>Painel</b></sub></td>
+    <td align="center" valign="top"><img src="docs/configuracoes.png" alt="Tela de configurações com janela, alertas, Claude e atualizações" width="270"><br><sub><b>Configurações</b> (botão ⚙)</sub></td>
+    <td align="center" valign="top"><img src="docs/primeiro-uso.png" alt="Boas-vindas e mensagens de primeiro uso" width="270"><br><sub><b>Primeiro uso</b></sub></td>
   </tr>
 </table>
+
+<sub>Os números das capturas são ilustrativos.</sub>
 
 ## Recursos
 
