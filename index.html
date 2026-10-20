@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --bg: rgba(20,20,24,.55); --fg: #f4f4f5; --mut: #a1a1aa; --track: rgba(255,255,255,.12);
+    --line: rgba(255,255,255,.10); --tick: #fff;
+    --ok: #4ade80; --warn: #facc15; --bad: #f87171; --claude: #e8845f; --codex: #19c39a;
+    --accent: #d97757;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: rgba(255,255,255,.55); --fg: #18181b; --mut: #52525b; --track: rgba(0,0,0,.10);
+      --line: rgba(0,0,0,.10); --tick: #18181b;
+      --ok: #16a34a; --warn: #ca8a04; --bad: #dc2626; --claude: #c2542d; --codex: #0d8a6b;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { background: transparent; font: 13px 'Segoe UI Variable', 'Segoe UI', sans-serif;
+               color: var(--fg); user-select: none; overflow: hidden; }
+  body { transition: opacity .25s; }
+  body.idle { opacity: .72; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .card { padding: 12px 14px 12px; background: var(--bg); -webkit-app-region: drag; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  header b { font-size: 11px; letter-spacing: .08em; color: var(--mut); text-transform: uppercase; }
+  .btns { -webkit-app-region: no-drag; display: flex; gap: 2px; }
+  button { background: none; border: 0; color: var(--mut); cursor: pointer; width: 24px; height: 22px;
+           border-radius: 6px; font-size: 13px; line-height: 1; }
+  button:hover { color: var(--fg); background: var(--track); }
+  button.x:hover { background: var(--bad); color: #fff; }
+  button:focus-visible { outline: 2px solid var(--accent); }
+
+  /* ----- modo completo ----- */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .col { display: flex; flex-direction: column; gap: 8px; }
+  .svc { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 13px; }
+  .svc svg { width: 18px; height: 18px; }
+  .cell { -webkit-app-region: no-drag; display: flex; flex-direction: column; align-items: center;
+          padding: 8px 4px 6px; border-radius: 12px; border: 1px solid var(--line); }
+  .ring { position: relative; width: 84px; height: 84px; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+  .ring .trk { fill: none; stroke: var(--track); stroke-width: 7; }
+  .ring .val { fill: none; stroke-width: 7; stroke-linecap: round;
+               transition: stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1), stroke .4s; }
+  .ring .tick { stroke: var(--tick); stroke-width: 2; stroke-linecap: round; opacity: .85;
+                transition: transform .6s; transform-origin: 44px 44px; }
+  .ring .pct { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; font-weight: 600; }
+  .ring .pct small { font-size: 11px; font-weight: 500; color: var(--mut); margin-left: 1px; }
+  .cell.hot .ring .val { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .55; } }
+  .lbl { margin-top: 4px; font-size: 12px; font-weight: 600; }
+  .cap { color: var(--mut); font-size: 11px; }
+  .spark { width: 100%; height: 16px; margin-top: 4px; }
+  .spark path { fill: none; stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; opacity: .9; }
+  .spark .flat { stroke-dasharray: 2 3; opacity: .4; }
+
+  .errcard { -webkit-app-region: no-drag; padding: 12px 10px; border-radius: 12px; border: 1px dashed var(--line);
+             color: var(--mut); font-size: 12px; text-align: center; line-height: 1.4; }
+  .errcard .ic { font-size: 18px; display: block; margin-bottom: 4px; opacity: .8; }
+
+  /* ----- modo compacto ----- */
+  .compact-row { display: none; gap: 14px; align-items: center; justify-content: space-around; }
+  .pill { -webkit-app-region: no-drag; display: flex; align-items: center; gap: 6px; font-weight: 600; }
+  .pill svg { width: 16px; height: 16px; }
+  .pill .sep { color: var(--mut); font-weight: 400; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 3px; }
+  body.compact .grid, body.compact footer { display: none; }
+  body.compact .compact-row { display: flex; }
+  body.compact header { margin-bottom: 6px; }
+
+  footer { margin-top: 10px; color: var(--mut); font-size: 11px; text-align: right; }
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <header>
+    <b>Limites de uso</b>
+    <div class="btns">
+      <button id="r" title="Atualizar agora">⟳</button>
+      <button id="c" title="Alternar modo compacto">▭</button>
+      <button id="m" title="Fechar o painel (a faixa continua rodando)">—</button>
+      <button id="x" class="x" title="Fechar o widget">✕</button>
+    </div>
+  </header>
+  <div class="grid" id="grid"></div>
+  <div class="compact-row" id="compact"></div>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const C = 2 * Math.PI * 36; // circunferência do anel (r = 36)
+const SVC = {
+  claude: { name: 'Claude', color: 'var(--claude)',
+    logo: `<svg viewBox="0 0 24 24"><g stroke="var(--claude)" stroke-width="2.4" stroke-linecap="round">
+      <path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></g></svg>` },
+  codex: { name: 'Codex', color: 'var(--codex)',
+    logo: `<svg viewBox="0 0 24 24"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z" fill="none"
+      stroke="var(--codex)" stroke-width="2.2" stroke-linejoin="round"/><path d="M9 10l3 2-3 2M13.5 14.5h2.5"
+      fill="none" stroke="var(--codex)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` },
+};
+const KEYS = ['claude', 'codex'];
+let data = null, built = {}, shown = {};
+
+const statusColor = (p, base) => (p >= 90 ? 'var(--bad)' : p >= 70 ? 'var(--warn)' : base);
+
+function until(ms) {
+  if (!ms) return 'janela livre';
+  let s = Math.max(0, Math.floor((ms - Date.now()) / 1000));
+  const d = Math.floor(s / 86400); s -= d * 86400;
+  const h = Math.floor(s / 3600); s -= h * 3600;
+  const m = Math.floor(s / 60);
+  return 'reseta em ' + (d ? `${d}d ${h}h` : h ? `${h}h ${m}min` : `${m}min`);
+}
+function clock(ms) {
+  const d = new Date(ms), t = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const same = d.toDateString() === new Date().toDateString();
+  return same ? `hoje às ${t}` : `${d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })} às ${t}`;
+}
+function pace(w) {
+  if (!w.resetsAt || !w.windowMs) return null;
+  const frac = Math.min(1, Math.max(0, 1 - (w.resetsAt - Date.now()) / w.windowMs));
+  return { frac, expected: frac * 100, projected: frac > 0.03 ? Math.min(999, w.percent / frac) : null };
+}
+function tooltip(svcName, w) {
+  const p = pace(w), l = [`${svcName} · ${w.label}`, `Usado: ${Math.round(w.percent)}%`];
+  l.push(w.resetsAt ? `Reseta ${clock(w.resetsAt)}` : 'Janela sem uso desde o último reset');
+  if (p) {
+    l.push(`Ritmo esperado agora: ${Math.round(p.expected)}%`);
+    if (p.projected != null) l.push(`Projeção no reset: ${Math.round(p.projected)}%` + (p.projected > 100 ? ' ⚠ estoura o limite' : ''));
+  }
+  return l.join('\n');
+}
+
+// número que "conta" até o valor novo
+function countTo(el, to) {
+  const from = parseFloat(el.dataset.v ?? '0'); el.dataset.v = to;
+  const t0 = performance.now(), dur = 700;
+  (function step(t) {
+    const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = Math.round(from + (to - from) * e);
+    if (k < 1) requestAnimationFrame(step);
+  })(t0);
+}
+
+function sparkPath(key, idx, windowMs) {
+  const now = Date.now(), t0 = now - windowMs;
+  const pts = (data.history || []).filter((e) => e.t >= t0 && e[key] && e[key][idx] != null)
+    .map((e) => [(e.t - t0) / windowMs * 100, 16 - 1.5 - (e[key][idx] / 100) * 13]);
+  if (pts.length < 2) return { d: 'M0 14.5 H100', flat: true };
+  pts.push([100, pts[pts.length - 1][1]]);
+  return { d: 'M' + pts.map((p) => p.map((n) => n.toFixed(1)).join(' ')).join(' L'), flat: false };
+}
+
+function buildColumn(key, p) {
+  const s = SVC[key];
+  const col = document.createElement('div');
+  col.className = 'col';
+  col.innerHTML = `<div class="svc">${s.logo}<span>${s.name}</span></div>`;
+  const refs = { col, cells: [] };
+  if (!p.ok) {
+    col.insertAdjacentHTML('beforeend', `<div class="errcard"><span class="ic">⚠</span>${p.error}</div>`);
+    return refs;
+  }
+  p.windows.forEach(() => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.innerHTML = `
+      <div class="ring">
+        <svg viewBox="0 0 88 88"><circle class="trk" cx="44" cy="44" r="36"/>
+          <circle class="val" cx="44" cy="44" r="36" stroke-dasharray="${C}" stroke-dashoffset="${C}"/>
+          <line class="tick" x1="44" y1="2" x2="44" y2="11"/></svg>
+        <div class="pct num"><span><span class="n">0</span><small>%</small></span></div>
+      </div>
+      <div class="lbl"></div><div class="cap num"></div>
+      <svg class="spark" viewBox="0 0 100 16" preserveAspectRatio="none"><path/></svg>`;
+    col.appendChild(cell);
+    refs.cells.push({
+      cell, val: cell.querySelector('.val'), tick: cell.querySelector('.tick'), n: cell.querySelector('.n'),
+      lbl: cell.querySelector('.lbl'), cap: cell.querySelector('.cap'), path: cell.querySelector('.spark path'),
+    });
+  });
+  return refs;
+}
+
+function update(key, p) {
+  const s = SVC[key], refs = built[key];
+  if (!p.ok) return;
+  p.windows.forEach((w, i) => {
+    const r = refs.cells[i];
+    if (!r) return;
+    const pct = Math.max(0, Math.min(100, w.percent));
+    const color = statusColor(pct, s.color);
+    requestAnimationFrame(() => { r.val.style.strokeDashoffset = C * (1 - pct / 100); });
+    r.val.style.stroke = color;
+    countTo(r.n, Math.round(pct));
+    r.lbl.textContent = w.label;
+    r.cap.textContent = until(w.resetsAt);
+    r.cell.title = tooltip(s.name, w);
+    r.cell.classList.toggle('hot', pct >= 90);
+    const pc = pace(w);
+    r.tick.style.display = pc ? '' : 'none';
+    if (pc) r.tick.style.transform = `rotate(${pc.frac * 360}deg)`;
+    const sp = sparkPath(key, i, w.windowMs || 5 * 3600e3);
+    r.path.setAttribute('d', sp.d);
+    r.path.setAttribute('class', sp.flat ? 'flat' : '');
+    r.path.style.stroke = color;
+  });
+}
+
+function renderCompact() {
+  document.getElementById('compact').innerHTML = KEYS.map((k) => {
+    const p = data[k], s = SVC[k];
+    const vals = p.ok
+      ? p.windows.map((w) => `<span class="num" title="${tooltip(s.name, w)}"><i class="dot" style="background:${statusColor(w.percent, s.color)}"></i>${Math.round(w.percent)}%</span>`).join('<span class="sep">/</span>')
+      : '<span title="' + p.error + '">⚠</span>';
+    return `<div class="pill">${s.logo}${vals}</div>`;
+  }).join('');
+}
+
+function render() {
+  if (!data) return;
+  const grid = document.getElementById('grid');
+  KEYS.forEach((k, idx) => {
+    const p = data[k], sig = p.ok ? 'ok' + p.windows.length : 'err:' + p.error;
+    if (shown[k] !== sig) { // estrutura mudou: reconstrói só esta coluna
+      const refs = buildColumn(k, p);
+      if (built[k]) grid.replaceChild(refs.col, built[k].col); else grid.appendChild(refs.col);
+      built[k] = refs; shown[k] = sig;
+    }
+    update(k, p);
+  });
+  renderCompact();
+  const hm = (t) => new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('foot').textContent = data.claude.stale
+    ? `Claude de ${hm(data.claude.fetchedAt)} (consulta limitada) · atualizado ${hm(data.updatedAt)}`
+    : 'atualizado ' + new Date(data.updatedAt).toLocaleTimeString('pt-BR');
+  fit();
+}
+function fit() { window.api.resize(document.getElementById('card').offsetHeight); }
+
+window.api.onData((d) => {
+  data = d;
+  if (d.accent) document.documentElement.style.setProperty('--accent', d.accent);
+  render();
+});
+window.api.onSettings((s) => { document.body.classList.toggle('compact', !!s.compact); fit(); });
+window.api.onHover((inside) => document.body.classList.toggle('idle', !inside));
+
+document.getElementById('r').onclick = () => window.api.refresh();
+document.getElementById('c').onclick = () => window.api.toggleCompact();
+document.getElementById('m').onclick = () => window.api.hide();
+document.getElementById('x').onclick = () => window.api.quit();
+setInterval(() => { if (data) { render(); } }, 30000);
+</script>
+</body>
+</html>

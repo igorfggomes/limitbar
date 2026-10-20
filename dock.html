@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --ok: #4ade80; --warn: #facc15; --bad: #f87171; --claude: #e8845f; --codex: #19c39a; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { background: transparent; overflow: hidden; height: 100%;
+               font: 600 13px 'Segoe UI Variable', 'Segoe UI', sans-serif; color: #f4f4f5; user-select: none; }
+  /* a barra do Windows pode ser clara ou escura: o fundo próprio garante leitura nos dois casos */
+  #bar { display: inline-flex; align-items: center; gap: 12px; height: 100%; padding: 0 6px 0 4px;
+         background: rgba(24,24,28,.72); border-radius: 8px; border: 1px solid rgba(255,255,255,.10);
+         white-space: nowrap; }
+  /* alça para arrastar a faixa na horizontal; o resto é clicável e abre o flyout */
+  #grip { -webkit-app-region: drag; width: 12px; align-self: stretch; margin-left: -2px; cursor: grab;
+          display: grid; place-items: center; color: #71717a; font-size: 10px; letter-spacing: -2px; }
+  #grip:hover { color: #fff; }
+  #v { -webkit-app-region: no-drag; display: flex; align-items: center; gap: 12px; height: 100%;
+       padding-right: 4px; cursor: pointer; border-radius: 6px; }
+  #v:hover { background: rgba(255,255,255,.10); }
+  .pill { display: flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+  .pill svg { width: 15px; height: 15px; }
+  .sep { color: #a1a1aa; font-weight: 400; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 3px; }
+</style>
+</head>
+<body>
+<div id="bar"><span id="grip" title="Arrastar">⋮⋮</span><span id="v" title="Abrir detalhes"></span></div>
+<script>
+const LOGO = {
+  claude: `<svg viewBox="0 0 24 24"><g stroke="#e8845f" stroke-width="2.6" stroke-linecap="round"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></g></svg>`,
+  codex: `<svg viewBox="0 0 24 24"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z" fill="none" stroke="#19c39a" stroke-width="2.4" stroke-linejoin="round"/></svg>`,
+};
+const BASE = { claude: 'var(--claude)', codex: 'var(--codex)' };
+const col = (p, b) => (p >= 90 ? 'var(--bad)' : p >= 70 ? 'var(--warn)' : b);
+
+let lastHtml = '';
+window.api.onData((d) => {
+  const html = ['claude', 'codex'].map((k) => {
+    const p = d[k];
+    const vals = p.ok
+      ? p.windows.map((w) => `<span title="${k} · ${w.label}"><i class="dot" style="background:${col(w.percent, BASE[k])}"></i>${Math.round(w.percent)}%</span>`).join('<span class="sep">/</span>')
+      : `<span title="${p.error}">⚠</span>`;
+    return `<span class="pill">${LOGO[k]}${vals}</span>`;
+  }).join('<span style="width:6px"></span>');
+  if (html === lastHtml) return; // nada mudou: não mexe no DOM nem na janela (evita piscar)
+  lastHtml = html;
+  document.getElementById('v').innerHTML = html;
+  window.api.dockResize(document.getElementById('bar').offsetWidth + 2);
+});
+document.getElementById('v').onclick = () => window.api.toggleMain();
+document.getElementById('bar').addEventListener('contextmenu', (e) => { e.preventDefault(); window.api.dockMenu(); });
+</script>
+</body>
+</html>
