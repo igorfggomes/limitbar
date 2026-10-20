@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('api', {
   setCloseToTray: (v) => ipcRenderer.send('set-close-to-tray', v),
   setAutoUpdate: (v) => ipcRenderer.send('set-auto-update', v),
   setAlerts: (patch) => ipcRenderer.send('set-alerts', patch),
+  setKeepAlive: (patch) => ipcRenderer.send('set-keepalive', patch),
+  keepAliveTest: () => ipcRenderer.send('keepalive-test'),
   setAutoRefreshToken: (v) => ipcRenderer.send('set-auto-refresh-token', v),
   setAutostart: (v) => ipcRenderer.send('set-autostart', v),
   onboardDone: (opts) => ipcRenderer.send('onboard-done', opts),

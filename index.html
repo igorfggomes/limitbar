@@ -52,7 +52,10 @@
              color: var(--mut); font-size: 12px; line-height: 1.4; }
 
   /* ----- tela de configurações (substitui as barras) ----- */
-  .cfgpage { display: none; -webkit-app-region: no-drag; }
+  /* o máximo vem do processo principal (--maxh): em telas baixas, só as configurações rolam */
+  .cfgpage { display: none; -webkit-app-region: no-drag; max-height: calc(var(--maxh, 99999px) - 72px); overflow-y: auto; margin-right: -6px; padding-right: 6px; }
+  .cfgpage::-webkit-scrollbar { width: 6px; }
+  .cfgpage::-webkit-scrollbar-thumb { background: var(--track); border-radius: 3px; }
   body.cfg .cfgpage { display: block; }
   body.cfg .bars, body.cfg .upd, body.cfg footer { display: none; }
   .ps + .ps { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
@@ -100,6 +103,9 @@
   .chip:hover { color: var(--fg); background: var(--track); }
   .chip[aria-pressed="true"] { background: var(--accent); border-color: transparent; color: #fff; }
   .grp.off { opacity: .4; pointer-events: none; }
+  .kastat { margin-top: 3px; color: var(--mut); font-size: 11px; line-height: 1.45; font-weight: 400; }
+  .kastat div + div { margin-top: 2px; }
+  .kastat .ok { color: var(--ok); } .kastat .bad { color: var(--bad); }
   .grp { margin-top: 12px; }
   .grp > .opt + .opt { margin-top: 12px; }
 
@@ -165,6 +171,21 @@
           <span><b>Avisar quando resetar</b></span>
           <input type="checkbox" id="al-reset" class="sw">
         </label>
+      </div>
+    </section>
+    <section class="ps">
+      <h3>Janela de 5h</h3>
+      <label class="opt">
+        <span><b>Iniciar a janela sozinho</b><small>No reset, envia uma mensagem mínima para a próxima janela começar.</small></span>
+        <input type="checkbox" id="ka-on" class="sw">
+      </label>
+      <div class="grp">
+        <div class="opt col"><b>Para</b><div class="chips" id="ka-svc"></div></div>
+        <div class="opt col"><b>Teto de custo por disparo</b><div class="chips" id="ka-ceil"></div></div>
+        <div class="opt">
+          <span><b>Testar agora</b><div id="ka-stat" class="kastat">Nenhum disparo ainda</div></span>
+          <button class="act" id="ka-test">Testar</button>
+        </div>
       </div>
     </section>
     <section class="ps">
@@ -375,8 +396,35 @@ function renderChips() {
   $('al-svc').innerHTML = KEYS.map((k) => `<button class="chip" data-k="${k}" aria-pressed="${cfg.alerts.services[k] !== false}">${SVC[k].name}</button>`).join('');
   $('al-opts').classList.toggle('off', !cfg.alerts.enabled);
 }
+const KA_CEILINGS = [1, 2, 3, 5];
+const SVC_NAME = { claude: 'Claude', codex: 'Codex' };
+const pct1 = (n) => String(n).replace('.', ',') + '%';
+function renderKA(ka) {
+  if (!ka) return;
+  const c = ka.cfg;
+  $('ka-on').checked = !!c.enabled;
+  $('ka-svc').innerHTML = KEYS.map((k) => `<button class="chip" data-k="${k}" aria-pressed="${c.services[k] !== false}">${SVC_NAME[k]}</button>`).join('');
+  $('ka-ceil').innerHTML = KA_CEILINGS.map((n) => `<button class="chip" data-v="${n}" aria-pressed="${c.ceilingPct === n}">${n}%</button>`).join('');
+  const box = $('ka-stat'); box.textContent = '';
+  const add = (text, cls) => { const d = document.createElement('div'); d.textContent = text; if (cls) d.className = cls; box.appendChild(d); };
+  const st = ka.status;
+  KEYS.forEach((k) => {
+    if (!st) return;
+    const dis = st.disabled && st.disabled[k], last = st.last && st.last[k];
+    if (dis) { add(`${SVC_NAME[k]} desligado: um disparo custou ${pct1(dis.cost)} (teto ${pct1(dis.ceiling)})`, 'bad'); return; }
+    if (!last) return;
+    const when = hm(last.at) + (last.test ? ' (teste)' : '');
+    if (!last.ok) add(`${SVC_NAME[k]} às ${when}: falhou — ${last.message}`, 'bad');
+    else add(`${SVC_NAME[k]} às ${when}: ${last.started ? 'janela iniciada' : 'enviado, janela ainda não apareceu'}${last.cost != null ? ' · custou ' + pct1(last.cost) : ''}`, last.started ? 'ok' : '');
+  });
+  if (!box.children.length) add('Nenhum disparo ainda');
+  const busy = ka.testing || (st && st.running);
+  $('ka-test').disabled = !!busy;
+  $('ka-test').textContent = busy ? 'Enviando…' : 'Testar';
+}
 window.api.onSettings((s) => {
   cfg = s;
+  if (s.maxHeight) document.documentElement.style.setProperty('--maxh', s.maxHeight + 'px');
   $('ctt').checked = !!s.closeToTray;
   $('st').checked = !!s.openAtLogin;
   $('aut').checked = s.autoUpdate !== false;
@@ -385,6 +433,7 @@ window.api.onSettings((s) => {
   $('al-reset').checked = s.alerts.onReset;
   $('welcome').hidden = !!s.onboarded;
   renderChips();
+  renderKA(s.keepAlive);
   if (s.version) $('ver').textContent = 'LimitBar ' + s.version;
   lastCheck = s.lastCheck || lastCheck;
   if (lastUpdate.state === 'none') renderUpdateStatus(lastUpdate);
@@ -414,6 +463,17 @@ $('al-svc').onclick = (e) => {
   const k = b.dataset.k;
   window.api.setAlerts({ services: { [k]: cfg.alerts.services[k] === false } });
 };
+$('ka-on').onchange = (e) => window.api.setKeepAlive({ enabled: e.target.checked });
+$('ka-svc').onclick = (e) => {
+  const b = e.target.closest('.chip'); if (!b || !cfg || !cfg.keepAlive) return;
+  const k = b.dataset.k;
+  window.api.setKeepAlive({ services: { [k]: cfg.keepAlive.cfg.services[k] === false } });
+};
+$('ka-ceil').onclick = (e) => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  window.api.setKeepAlive({ ceilingPct: Number(b.dataset.v) });
+};
+$('ka-test').onclick = () => window.api.keepAliveTest();
 $('wl-ok').onclick = () => window.api.onboardDone({ autostart: $('wl-auto').checked });
 setInterval(() => { if (data) render(); }, 30000);
 </script>

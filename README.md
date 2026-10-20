@@ -30,6 +30,7 @@ Clique na faixa e o painel abre colado na barra, com as barras de uso e o aviso 
 - **Previsão de esgotamento**: quando você está acima do ritmo, a barra avisa "no ritmo atual, o limite acaba hoje às 14:32" (e, se já bateu 100%, quando volta).
 - **Alertas configuráveis** do Windows: escolha os níveis (50, 70, 80, 90, 95%), avise quando o limite **resetar** e silencie por serviço.
 - **Atualização com um clique**: o app avisa quando sai uma versão nova (um ⬆ na faixa e um aviso no painel) e atualiza sozinho.
+- **Janela de 5h automática (opcional, desligada por padrão)**: quando a janela de 5 horas fica parada, envia uma mensagem mínima pela CLI oficial para a próxima começar, com teto de custo e várias travas (veja [Janela de 5h automática](#janela-de-5h-automática-opcional)).
 - **Renovação automática do login do Claude**: se o token expirar, o LimitBar renova sozinho (pode desligar nas configurações).
 - **Primeiro uso guiado**: boas-vindas na primeira abertura e mensagens que dizem o que fazer quando o Claude Code ou o Codex não estão instalados ou logados.
 - **Iniciar com o Windows** pelas configurações ou pelo menu (clique direito na faixa).
@@ -92,10 +93,36 @@ Para abrir sem janela de console, dê dois cliques em `iniciar.vbs`.
 | Ação | Resultado |
 |---|---|
 | Clique na faixa | Abre ou fecha o painel de detalhes |
-| Botão ⚙ do painel | Minimizar ao fechar, iniciar com o Windows, alertas (níveis, serviços, reset), renovação do login do Claude e atualizações |
+| Botão ⚙ do painel | Minimizar ao fechar, iniciar com o Windows, alertas (níveis, serviços, reset), janela de 5h automática, renovação do login do Claude e atualizações |
 | Clique direito na faixa | Menu: atualizar, minimizar ao fechar, manter aberto, iniciar com o Windows, procurar atualizações, sair |
 | Arrastar a alça `⋮⋮` | Move a faixa na horizontal (a posição é salva) |
 | Mouse sobre uma barra | Horário do reset, ritmo esperado e projeção |
+
+## Janela de 5h automática (opcional)
+
+As janelas de 5 horas só começam na primeira mensagem. Com **⚙ → Janela de 5h → Iniciar a janela sozinho**, o LimitBar detecta que a janela de um serviço está parada (sem horário de reset) e envia **uma mensagem mínima** para a próxima começar, para você sempre ter uma janela em andamento, 24 horas por dia. Funciona para o Claude e para o Codex, e você escolhe para quais.
+
+**O que essa função não faz:** não aumenta o seu limite. Ela só muda *quando* as janelas começam, e cada disparo gasta um pouco do limite semanal. Vale conferir os termos do seu plano sobre uso automatizado.
+
+**Como o disparo é feito.** Sempre pela CLI oficial instalada no seu computador, nunca chamando a API direto com o seu token:
+
+| Serviço | Comando |
+|---|---|
+| Claude | `claude -p "Responda apenas: ok" --model haiku --no-session-persistence --tools ""` |
+| Codex | `codex exec --skip-git-repo-check -s read-only "Responda apenas: ok"` |
+
+Eles rodam numa pasta temporária vazia (nenhum projeto vira contexto) e com as variáveis de chave de API removidas do ambiente (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY` e semelhantes), para a cobrança nunca sair da API em vez da sua assinatura. No Codex a sessão é gravada de propósito: o LimitBar enxerga a janela pelos logs de sessão.
+
+**Teto de custo.** Depois de cada disparo, o LimitBar lê o uso de novo e mede quanto ele custou. Se passar do teto que você escolheu (1%, 2%, 3% ou 5%; padrão 2%), a função é **desligada para aquele serviço** e você recebe um aviso. Religar o serviço ou subir o teto tenta de novo. O 1% não pode ser garantido: o custo real depende do plano e é mostrado nas configurações depois de cada disparo.
+
+**Travas contra repetição.** Como um erro aqui gastaria limite de verdade:
+
+- só dispara com a janela comprovadamente parada; leitura duvidosa (rede fora, valor guardado, erro) nunca dispara;
+- espera um minuto depois de abrir o app e 12 minutos depois de um disparo; se falhar, a espera cresce (10, 20, 40, 60 e 120 minutos);
+- no máximo 3 tentativas por janela parada e 8 por dia, por serviço; ao desistir, avisa;
+- uma tentativa por vez.
+
+**Testar agora** envia uma mensagem a cada serviço marcado (depois de pedir confirmação) e mostra o custo medido, sem contar nas travas e sem desligar nada. O computador precisa estar ligado e o app aberto; quem usa chave de API (e não assinatura) não deve ligar a função.
 
 ## Atualizações
 
@@ -124,7 +151,7 @@ index.html     painel (barras de uso e configurações)
 dock.html      faixa sobre a barra de tarefas
 preload.js     ponte segura entre a interface e o processo principal
 updater.js     atualização automática (consulta, download, verificação, troca de arquivos)
-lib/           lógica sem dependência do Electron: versões, ritmo e esgotamento, alertas
+lib/           lógica sem dependência do Electron: versões, ritmo e esgotamento, alertas, janela de 5h (decisão e execução)
 tests/         testes automáticos (npm test)
 scripts/       executor dos testes e extração das notas de versão
 .github/       integração contínua e publicação automática das Releases
@@ -141,7 +168,7 @@ npm test        # testes automáticos (usam só o executor nativo do Node)
 npm start       # roda o app direto do código
 ```
 
-Os testes cobrem versões, ritmo e esgotamento, alertas, os dois provedores (inclusive a renovação do token, com o servidor simulado) e o atualizador (inclusive a conferência do SHA-256). O GitHub os executa a cada `push` e `pull request` (**CI**), no Node 20 e no 24, e também confere que o empacotamento continua funcionando.
+Os testes cobrem versões, ritmo e esgotamento, alertas, a janela de 5h automática (decisão, travas, teto de custo e execução dos comandos), os dois provedores (inclusive a renovação do token, com o servidor simulado) e o atualizador (inclusive a conferência do SHA-256). O GitHub os executa a cada `push` e `pull request` (**CI**), no Node 20 e no 24, e também confere que o empacotamento continua funcionando.
 
 ### Publicar uma versão
 

@@ -1,9 +1,11 @@
-const { app, BrowserWindow, Menu, Notification, shell, systemPreferences, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, Menu, Notification, dialog, shell, systemPreferences, ipcMain, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const providers = require('./providers');
 const updater = require('./updater');
 const alertsLib = require('./lib/alerts');
+const keepAliveLib = require('./lib/keepalive');
+const cli = require('./lib/cli');
 
 const REFRESH_MS = 60 * 1000;
 const WIDTH = 340;
@@ -14,11 +16,12 @@ const FLYOUT_MARGIN = 8;
 let win, dock, last = null, hover = true, blurHiddenAt = 0;
 let settings = {
   dockX: null, pinned: false, autoUpdate: true, skipVersion: null, closeToTray: true,
-  autoRefreshToken: true, onboarded: false, alerts: alertsLib.normalizeConfig({}),
+  autoRefreshToken: true, onboarded: false, alerts: alertsLib.normalizeConfig({}), keepAlive: keepAliveLib.normalizeConfig({}),
 };
 let update = { state: 'none' }, updateInfo = null, lastCheckAt = null;
 const timers = [];
 const alerts = alertsLib.create();
+let keepAlive = null, testingKeepAlive = false, modalOpen = false;
 
 const alive = (o) => !!o && !o.isDestroyed();
 const file = (n) => path.join(app.getPath('userData'), n);
@@ -47,6 +50,10 @@ async function refresh() {
     alerts.evaluate(key, name, reading, settings.alerts).forEach((n) => new Notification({ title: n.title, body: n.body }).show());
   }
   [win, dock].forEach((w) => alive(w) && w.webContents.send('data', last));
+  // janela de 5h parada? (não roda com dados simulados: lá os dados não são de verdade)
+  if (keepAlive && !process.env.LIMITBAR_FAKE_DATA) {
+    keepAlive.tick({ claude, codex }, settings.keepAlive).catch(() => { /* já registrado na tentativa */ }).finally(sendSettings);
+  }
 }
 
 // ---------- flyout: abre grudado na barra de tarefas, ancorado na faixa ----------
@@ -134,12 +141,19 @@ function watchTaskbar() {
   }, 100));
 }
 
+// altura máxima do painel: a área útil da tela menos as margens (em telas baixas, as configurações rolam)
+function maxPanelHeight() {
+  if (process.env.LIMITBAR_FAKE_MAXH) return Number(process.env.LIMITBAR_FAKE_MAXH); // só para testar telas baixas
+  return screen.getPrimaryDisplay().workArea.height - 2 * FLYOUT_MARGIN;
+}
+
 function sendSettings() {
   if (!alive(win)) return;
   win.webContents.send('settings', {
     closeToTray: settings.closeToTray, autoUpdate: settings.autoUpdate, autoRefreshToken: settings.autoRefreshToken,
     alerts: settings.alerts, onboarded: !!settings.onboarded, openAtLogin: app.getLoginItemSettings().openAtLogin,
-    lastCheck: lastCheckAt, version: app.getVersion(),
+    keepAlive: { cfg: settings.keepAlive, status: keepAlive ? keepAlive.status() : null, testing: testingKeepAlive },
+    lastCheck: lastCheckAt, version: app.getVersion(), maxHeight: maxPanelHeight(),
   });
 }
 
@@ -149,6 +163,40 @@ function setAlerts(patch) {
   // mudar os níveis ou ligar/desligar não pode disparar aviso do que já estava acima
   if (JSON.stringify(before.levels) !== JSON.stringify(settings.alerts.levels) || before.enabled !== settings.alerts.enabled) alerts.reseed();
   saveSettings(); sendSettings();
+}
+
+function setKeepAlive(patch) {
+  const before = settings.keepAlive;
+  settings.keepAlive = keepAliveLib.normalizeConfig({ ...before, ...patch, services: { ...before.services, ...((patch && patch.services) || {}) } });
+  // religar (ou subir o teto) é pedir para tentar de novo um serviço que o teto tinha desligado
+  if (keepAlive) {
+    for (const svc of keepAliveLib.SERVICES) {
+      const turnedOn = (settings.keepAlive.enabled && !before.enabled) || (settings.keepAlive.services[svc] && !before.services[svc])
+        || settings.keepAlive.ceilingPct > before.ceilingPct;
+      if (turnedOn) keepAlive.clearDisabled(svc);
+    }
+  }
+  saveSettings(); sendSettings();
+}
+
+// "Testar agora": confirma antes (gasta limite de verdade) e mostra o custo medido nas configurações
+async function testKeepAlive() {
+  if (!keepAlive || testingKeepAlive || keepAlive.status().running) return;
+  const svcs = keepAliveLib.SERVICES.filter((s) => settings.keepAlive.services[s]);
+  if (!svcs.length) return;
+  const names = svcs.map((s) => (s === 'claude' ? 'Claude' : 'Codex')).join(' e ');
+  modalOpen = true; // o painel fecha ao perder o foco; com o diálogo aberto, ele precisa ficar
+  let res;
+  try {
+    res = await dialog.showMessageBox(win, {
+      type: 'question', buttons: ['Testar', 'Cancelar'], defaultId: 1, cancelId: 1, title: 'Testar janela automática',
+      message: `Enviar uma mensagem mínima ao ${names}?`,
+      detail: 'Isso gasta um pouco do seu limite (em geral menos de 1%). O resultado e o custo medido aparecem nas configurações.',
+    });
+  } finally { modalOpen = false; }
+  if (res.response !== 0) return;
+  testingKeepAlive = true; sendSettings();
+  try { await keepAlive.testNow(svcs, last || {}, settings.keepAlive); } finally { testingKeepAlive = false; sendSettings(); }
 }
 
 function setAutoRefreshToken(v) {
@@ -257,6 +305,13 @@ app.whenReady().then(() => {
   const stored = readJson('window.json', null);
   settings = { ...settings, ...(stored || {}) };
   settings.alerts = alertsLib.normalizeConfig(settings.alerts);
+  settings.keepAlive = keepAliveLib.normalizeConfig(settings.keepAlive);
+  keepAlive = keepAliveLib.createKeepAlive({
+    runCommand: (svc) => cli.run(svc),
+    readFresh: (svc) => (svc === 'claude' ? providers.claude({ force: true }) : providers.codex()),
+    notify: (n) => new Notification({ title: n.title, body: n.body }).show(),
+    store: { load: () => readJson('keepalive.json', { attempts: [], disabled: {} }), save: (s) => writeJson('keepalive.json', s) },
+  });
   // quem já usava o app antes das boas-vindas existirem não precisa vê-las
   if (stored && stored.onboarded === undefined) settings.onboarded = true;
   providers.configure({ autoRefresh: settings.autoRefreshToken !== false });
@@ -278,7 +333,7 @@ app.whenReady().then(() => {
   });
   // perdeu o foco (clique fora) -> fecha como um flyout, a menos que esteja fixado
   win.on('blur', () => {
-    if (settings.pinned || !win.isVisible()) return;
+    if (settings.pinned || modalOpen || !win.isVisible()) return;
     blurHiddenAt = Date.now();
     win.hide();
   });
@@ -291,6 +346,8 @@ app.whenReady().then(() => {
   ipcMain.on('set-close-to-tray', (_e, v) => setCloseToTray(v));
   ipcMain.on('set-auto-update', (_e, v) => setAutoUpdate(v));
   ipcMain.on('set-alerts', (_e, patch) => setAlerts(patch && typeof patch === 'object' ? patch : {}));
+  ipcMain.on('set-keepalive', (_e, patch) => setKeepAlive(patch && typeof patch === 'object' ? patch : {}));
+  ipcMain.on('keepalive-test', () => { testKeepAlive().catch(() => { modalOpen = false; testingKeepAlive = false; }); });
   ipcMain.on('set-auto-refresh-token', (_e, v) => setAutoRefreshToken(v));
   ipcMain.on('set-autostart', (_e, v) => setAutostart(v));
   ipcMain.on('onboard-done', (_e, opts) => finishOnboarding(opts));
@@ -303,7 +360,7 @@ app.whenReady().then(() => {
     if (!alive(win)) return;
     // janelas não redimensionáveis ignoram pedidos para encolher no Windows: libera só durante a troca
     win.setResizable(true);
-    win.setSize(WIDTH, Math.ceil(h));
+    win.setSize(WIDTH, Math.min(Math.ceil(h), maxPanelHeight()));
     win.setResizable(false);
     if (win.isVisible()) placeFlyout(); // a altura mudou: mantém colado na barra
   });

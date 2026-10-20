@@ -13,7 +13,7 @@ try { list = asar.listPackage(file).map((p) => p.replace(/\\/g, '/')); } catch (
 }
 
 const must = ['/main.js', '/preload.js', '/index.html', '/dock.html', '/providers.js', '/updater.js', '/package.json',
-  '/lib/pace.js', '/lib/alerts.js', '/lib/version.js', '/build/icon.ico'];
+  '/lib/pace.js', '/lib/alerts.js', '/lib/version.js', '/lib/keepalive.js', '/lib/cli.js', '/build/icon.ico'];
 const leak = ['/tests', '/scripts', '/.github', '/CHANGELOG.md', '/docs', '/dist'];
 
 const missing = must.filter((m) => !list.includes(m));

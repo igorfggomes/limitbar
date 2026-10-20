@@ -218,3 +218,38 @@ test('janela que já resetou desde a leitura volta a 0%', async () => {
   assert.equal(r.windows[0].resetsAt, null);
   assert.equal(r.windows[1].percent, 10);
 });
+
+test('janela de 5h sem horário de reset aparece como livre, sem NaN', async () => {
+  writeCreds({ expiresAt: Date.now() + 100 * H });
+  global.fetch = fakeFetch([[USAGE, () => json({ five_hour: { utilization: 0, resets_at: null }, seven_day: { utilization: 30, resets_at: isoIn(60 * H) } })]]);
+  const r = await providers.claude();
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.windows.map((w) => [w.label, w.percent, w.resetsAt === null]), [['5 horas', 0, true], ['Semanal', 30, false]]);
+  assert.ok(r.windows.every((w) => !Number.isNaN(w.resetsAt)));
+});
+
+test('sem a janela de 5h no retorno (nada em andamento), ela aparece como livre', async () => {
+  writeCreds({ expiresAt: Date.now() + 100 * H });
+  global.fetch = fakeFetch([[USAGE, () => json({ five_hour: null, seven_day: { utilization: 12, resets_at: isoIn(60 * H) } })]]);
+  const r = await providers.claude();
+  assert.equal(r.windows.length, 2);
+  assert.deepEqual([r.windows[0].label, r.windows[0].percent, r.windows[0].resetsAt], ['5 horas', 0, null]);
+  assert.equal(r.windows[0].windowMs, 5 * H);
+});
+
+test('leitura sem cache (force) consulta de novo, mas respeita a espera do 429', async () => {
+  writeCreds({ expiresAt: Date.now() + 100 * H });
+  let mode = 'ok';
+  global.fetch = fakeFetch([[USAGE, () => (mode === 'ok' ? json(usageBody(12, 40)) : json({}, 429))]]);
+  await providers.claude();
+  await providers.claude(); // dentro dos 2,5 min: usa o cache
+  assert.equal(global.fetch.count(USAGE), 1);
+  await providers.claude({ force: true });
+  assert.equal(global.fetch.count(USAGE), 2, 'force ignora o cache');
+
+  mode = '429'; advance(200e3);
+  await providers.claude({ force: true }); // recebe 429 e entra em espera
+  const n = global.fetch.count(USAGE);
+  await providers.claude({ force: true });
+  assert.equal(global.fetch.count(USAGE), n, 'force não fura a espera do 429');
+});

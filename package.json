@@ -1,6 +1,6 @@
 {
   "name": "usage-widget",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Limites de 5h e semanal do Claude e do Codex na barra de tarefas do Windows",
   "license": "MIT",
   "repository": {

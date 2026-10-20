@@ -127,9 +127,9 @@ const fetchUsage = (token) => fetch(USAGE_URL, {
   signal: AbortSignal.timeout(15000),
 });
 
-async function claude() {
+async function claude(opts = {}) {
   const now = Date.now();
-  if (claudeCache && now - claudeCache.fetchedAt < MIN_GAP_MS) return fromCache(false);
+  if (!opts.force && claudeCache && now - claudeCache.fetchedAt < MIN_GAP_MS) return fromCache(false);
   if (now < claudeNextTry) {
     return claudeCache ? fromCache(true)
       : { ok: false, code: 'rate-limited', error: `Limite de consultas do Claude — nova tentativa às ${hhmm(claudeNextTry)}` };
@@ -151,9 +151,14 @@ async function claude() {
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const j = await res.json();
-    const w = (label, x, windowMs) => x && { label, percent: x.utilization, resetsAt: Date.parse(x.resets_at), windowMs };
+    // Sem janela de 5h em andamento, o servidor pode mandar null ou uma janela sem horário de reset.
+    // Em vez de sumir com a barra, mostra "janela livre" (0%, sem reset).
+    const w = (label, x, windowMs) => {
+      const at = x && x.resets_at ? Date.parse(x.resets_at) : NaN;
+      return { label, percent: x && Number.isFinite(x.utilization) ? x.utilization : 0, resetsAt: Number.isFinite(at) ? at : null, windowMs };
+    };
     claudeCache = {
-      windows: [w('5 horas', j.five_hour, 5 * 3600e3), w('Semanal', j.seven_day, 7 * 86400e3)].filter(Boolean),
+      windows: [w('5 horas', j.five_hour, 5 * 3600e3), ...(j.seven_day ? [w('Semanal', j.seven_day, 7 * 86400e3)] : [])],
       fetchedAt: Date.now(),
     };
     claudeBackoff = 0; claudeNextTry = 0;
