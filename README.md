@@ -40,12 +40,19 @@ O endpoint do Claude limita consultas (HTTP 429). Por isso o app consulta no má
 ## Requisitos
 
 - Windows 11 (usa o fundo acrílico e a barra de tarefas do 11)
-- [Node.js](https://nodejs.org) 18 ou superior
+- [Node.js](https://nodejs.org) 18 ou superior (só para instalar a partir do código; o zip da Release não precisa)
 - Claude Code e/ou Codex CLI já instalados e logados no mesmo usuário do Windows
 
 ## Instalação
 
-### Instalar como programa (recomendado)
+### Baixar pronto (mais fácil, sem Node.js)
+
+1. Baixe o `LimitBar-win32-x64.zip` na [página de Releases](https://github.com/igorfggomes/limitbar/releases/latest).
+2. Extraia em qualquer pasta e abra o `LimitBar.exe`.
+
+O executável não é assinado digitalmente, então o Windows pode mostrar o aviso do SmartScreen: clique em **Mais informações → Executar assim mesmo**.
+
+### Instalar a partir do código (cria atalhos)
 
 ```powershell
 git clone https://github.com/igorfggomes/limitbar.git
