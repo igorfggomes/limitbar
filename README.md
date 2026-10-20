@@ -26,7 +26,7 @@ Clique na faixa e o painel abre colado na barra, com as barras de uso e o aviso 
 - **Painel que abre colado na barra**, ancorado na faixa, e fecha ao clicar fora (ou fica fixo, se preferir).
 - **Barras de progresso** que mudam de cor: normal, amarelo a partir de 70% e vermelho a partir de 90%.
 - **Marcador de ritmo** em cada barra: mostra onde você *deveria* estar naquele ponto da janela. Passando o mouse, aparecem o horário do reset e a projeção de uso até lá.
-- Tema claro/escuro automático e fundo de vidro (acrílico) do Windows 11.
+- **Tema Sistema, Claro ou Escuro** (⚙ → Aparência) e fundo de vidro (acrílico) do Windows 11. "Sistema" segue o tema do Windows.
 - **Previsão de esgotamento**: quando você está acima do ritmo, a barra avisa "no ritmo atual, o limite acaba hoje às 14:32" (e, se já bateu 100%, quando volta).
 - **Alertas configuráveis** do Windows: escolha os níveis (50, 70, 80, 90, 95%), avise quando o limite **resetar** e silencie por serviço.
 - **Atualização com um clique**: o app avisa quando sai uma versão nova (um ⬆ na faixa e um aviso no painel) e atualiza sozinho.
@@ -93,7 +93,7 @@ Para abrir sem janela de console, dê dois cliques em `iniciar.vbs`.
 | Ação | Resultado |
 |---|---|
 | Clique na faixa | Abre ou fecha o painel de detalhes |
-| Botão ⚙ do painel | Minimizar ao fechar, iniciar com o Windows, alertas (níveis, serviços, reset), janela de 5h automática, renovação do login do Claude e atualizações |
+| Botão ⚙ do painel | Minimizar ao fechar, iniciar com o Windows, tema, alertas (níveis, serviços, reset), janela de 5h automática, renovação do login do Claude e atualizações |
 | Clique direito na faixa | Menu: atualizar, minimizar ao fechar, manter aberto, iniciar com o Windows, procurar atualizações, sair |
 | Arrastar a alça `⋮⋮` | Move a faixa na horizontal (a posição é salva) |
 | Mouse sobre uma barra | Horário do reset, ritmo esperado e projeção |
@@ -105,7 +105,7 @@ Para abrir sem janela de console, dê dois cliques em `iniciar.vbs`.
 - **Leitores de tela**: botões com nome, barras como `progressbar` com valor e texto, avisos anunciados sem tirar o foco.
 - **Não só cor**: a partir de 90% aparece um ⚠, e o marcador de ritmo tem legenda no rodapé.
 - **Erros com saída**: cada erro diz o que fazer e traz o botão "Tentar de novo". Clicar numa notificação do Windows abre o painel.
-- **Contraste e movimento**: títulos com contraste acima de 4,5:1 nos dois temas, texto sobre o destaque do Windows escolhido pelo contraste, e animações desligadas se você pediu "reduzir movimento" no Windows.
+- **Contraste e movimento**: todo texto com contraste acima de 4,5:1 nos dois temas (um teste automático lê as cores do CSS e falha se alguma ficar fraca), texto sobre o destaque do Windows escolhido pelo contraste, e animações desligadas se você pediu "reduzir movimento" no Windows.
 
 ## Janela de 5h automática (opcional)
 
@@ -178,7 +178,7 @@ build/         ícone e script de empacotamento
 ```powershell
 npm install
 npm test        # testes automáticos (usam só o executor nativo do Node)
-npm run test:ui # 17 verificações da interface num Electron oculto (precisa do Electron instalado)
+npm run test:ui # 19 verificações da interface num Electron oculto (precisa do Electron instalado)
 npm start       # roda o app direto do código
 ```
 

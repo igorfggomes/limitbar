@@ -11,6 +11,7 @@ window.api = {
   refresh: rec('refresh'), closePanel: rec('closePanel'), hidePanel: rec('hidePanel'), resize: rec('resize'),
   setCloseToTray: rec('setCloseToTray'), setAutoUpdate: rec('setAutoUpdate'), setAlerts: rec('setAlerts'),
   setKeepAlive: rec('setKeepAlive'), keepAliveTest: rec('keepAliveTest'), setAutoRefreshToken: rec('setAutoRefreshToken'),
-  setAutostart: rec('setAutostart'), onboardDone: rec('onboardDone'),
+  setAutostart: rec('setAutostart'), setTheme: rec('setTheme'), onboardDone: rec('onboardDone'),
+  toggleMain: rec('toggleMain'), dockMenu: rec('dockMenu'), dockResize: rec('dockResize'), // usadas só pela faixa
   updateInstall: rec('updateInstall'), updateDismiss: rec('updateDismiss'), updateCheck: rec('updateCheck'),
 };

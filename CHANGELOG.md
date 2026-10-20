@@ -9,6 +9,12 @@ O fluxo de publicação usa a seção da versão deste arquivo como texto da Rel
 - **Configurações em seções recolhíveis**: cada seção (Janela, Alertas, Janela de 5h, Claude e Atualizações) tem uma seta para expandir e recolher, e **todas começam recolhidas**. A tela passa de cerca de 870 px para 230 px, e o que você abre rola quando a tela é baixa.
 - Títulos das seções em laranja claro (e laranja escuro no tema claro), com contraste bem maior que o azul de destaque do Windows.
 
+### Tema
+- **Escolha do tema** em ⚙ → Aparência: **Sistema** (segue o Windows, como antes), **Claro** ou **Escuro**. A escolha vale na hora e fica salva.
+- Quando você força um tema diferente do Windows, o fundo fica mais opaco, porque o vidro do Windows continua com o tom do sistema e o texto perderia contraste.
+- No tema claro, o âmbar, o verde e o vermelho de estado ficaram mais escuros: o âmbar e o verde tinham só 2,6:1 e 2,9:1 de contraste (agora acima de 5:1).
+- Um teste lê as cores do CSS e falha se algum texto ficar abaixo de 4,5:1 (ou barra abaixo de 3:1) em qualquer tema.
+
 ### Usabilidade e acessibilidade
 - **Feedback de estado**: esqueleto de carregamento enquanto a primeira leitura não chega; ao atualizar, o ⟳ gira, o botão fica desabilitado e o rodapé diz "Atualizando…".
 - **Leitores de tela**: botões de ícone com nome, cada barra é um `progressbar` com valor e texto ("44%, reseta em 3h 36min"), avisos de atualização anunciados sem roubar o foco.
@@ -36,7 +42,7 @@ O fluxo de publicação usa a seção da versão deste arquivo como texto da Rel
 - Não aumenta o limite: só muda quando as janelas começam, e cada disparo gasta um pouco do limite semanal.
 
 ### Por trás
-- Testes de mutação para as travas e para a limpeza da janela automática; 122 testes automáticos e 17 verificações de interface (`npm run test:ui`).
+- Testes de mutação para as travas e para a limpeza da janela automática; 132 testes automáticos e 19 verificações de interface (`npm run test:ui`).
 - Validada em uso real com Claude e Codex: custo medido de 0% a 1%; no Codex, o disparo criou a janela.
 
 ## 1.3.0 — 2026-10-20

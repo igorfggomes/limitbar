@@ -16,9 +16,12 @@
     :root {
       --bg: rgba(255,255,255,.55); --fg: #18181b; --mut: #52525b; --track: rgba(0,0,0,.10);
       --line: rgba(0,0,0,.10); --tick: #18181b;
-      --ok: #16a34a; --warn: #ca8a04; --bad: #dc2626; --claude: #c2542d; --codex: #0d8a6b; --head: #a8431c;
+      --ok: #14703a; --warn: #92570a; --bad: #b91c1c; --claude: #c2542d; --codex: #0d8a6b; --head: #a8431c;
     }
   }
+  /* tema escolhido por você (diferente de "Sistema"): o vidro do Windows segue o tema do sistema, então o fundo fica mais opaco */
+  :root[data-forced] { --bg: rgba(20,20,24,.93); }
+  @media (prefers-color-scheme: light) { :root[data-forced] { --bg: rgba(255,255,255,.95); } }
   * { box-sizing: border-box; margin: 0; }
   html, body { background: transparent; font: 13px 'Segoe UI Variable', 'Segoe UI', sans-serif;
                color: var(--fg); user-select: none; overflow: hidden; }
@@ -130,6 +133,7 @@
   .kastat div + div { margin-top: 2px; }
   .kastat .ok { color: var(--ok); } .kastat .bad { color: var(--bad); }
   .grp { margin-top: 12px; }
+  .hint { display: block; margin-top: 10px; color: var(--mut); font-size: 11px; }
   .grp > .opt + .opt { margin-top: 12px; }
 
   /* ----- aviso de atualização ----- */
@@ -193,6 +197,13 @@
         <input type="checkbox" id="st" class="sw">
       </label>
     </div>
+    </details>
+    <details class="ps">
+      <summary>Aparência</summary>
+      <div class="pbody">
+        <div class="opt col"><b>Tema</b><div class="chips" id="th-chips" role="group" aria-label="Tema"></div></div>
+        <small class="hint">"Sistema" segue o tema do Windows.</small>
+      </div>
     </details>
     <details class="ps">
       <summary>Alertas</summary>
@@ -476,6 +487,11 @@ function renderChips() {
   $('al-svc').innerHTML = KEYS.map((k) => `<button class="chip" data-k="${k}" aria-pressed="${cfg.alerts.services[k] !== false}">${SVC[k].name}</button>`).join('');
   $('al-opts').classList.toggle('off', !cfg.alerts.enabled);
 }
+const THEME_CHOICES = [['system', 'Sistema'], ['light', 'Claro'], ['dark', 'Escuro']];
+function renderTheme(theme) {
+  $('th-chips').innerHTML = THEME_CHOICES.map(([v, label]) => `<button type="button" class="chip" data-v="${v}" aria-pressed="${theme === v}">${label}</button>`).join('');
+  document.documentElement.toggleAttribute('data-forced', theme !== 'system');
+}
 const KA_CEILINGS = [1, 2, 3, 5];
 const SVC_NAME = { claude: 'Claude', codex: 'Codex' };
 const pct1 = (n) => String(n).replace('.', ',') + '%';
@@ -513,6 +529,7 @@ window.api.onSettings((s) => {
   $('al-reset').checked = s.alerts.onReset;
   $('welcome').hidden = !!s.onboarded;
   renderChips();
+  renderTheme(s.theme || 'system');
   renderKA(s.keepAlive);
   if (s.version) $('ver').textContent = 'LimitBar ' + s.version;
   lastCheck = s.lastCheck || lastCheck;
@@ -548,6 +565,7 @@ $('al-svc').onclick = (e) => {
   const k = b.dataset.k;
   window.api.setAlerts({ services: { [k]: cfg.alerts.services[k] === false } });
 };
+$('th-chips').onclick = (e) => { const b = e.target.closest('.chip'); if (b) window.api.setTheme(b.dataset.v); };
 $('ka-on').onchange = (e) => window.api.setKeepAlive({ enabled: e.target.checked });
 $('ka-svc').onclick = (e) => {
   const b = e.target.closest('.chip'); if (!b || !cfg || !cfg.keepAlive) return;

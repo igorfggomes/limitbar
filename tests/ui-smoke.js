@@ -139,7 +139,7 @@ app.whenReady().then(async () => {
   });
 
   await check('configurações: todas as seções começam recolhidas', async () => {
-    assert.equal(await js("document.querySelectorAll('details.ps').length"), 5);
+    assert.equal(await js("document.querySelectorAll('details.ps').length"), 6);
     assert.equal(await js("document.querySelectorAll('details.ps[open]').length"), 0);
   });
 
@@ -148,6 +148,22 @@ app.whenReady().then(async () => {
     assert.equal(await onAccent('#0067c0'), '#ffffff');
     assert.equal(await onAccent('#ffd54f'), '#111114');
     assert.equal(await onAccent('#d97757'), '#111114'); // laranja médio: branco não chega a 4,5:1
+  });
+
+  await check('tema: três opções, a atual fica marcada, e escolher uma envia o pedido', async () => {
+    await js(`window.__push.settings(${JSON.stringify({ ...settings, theme: 'dark' })})`);
+    const chips = await js("[...document.querySelectorAll('#th-chips .chip')].map((c) => [c.textContent, c.getAttribute('aria-pressed')])");
+    assert.deepEqual(chips, [['Sistema', 'false'], ['Claro', 'false'], ['Escuro', 'true']]);
+    await js('window.__calls.length = 0');
+    await js("document.querySelector('#th-chips .chip[data-v=light]').click()");
+    assert.deepEqual(await js('window.__calls.filter((c) => c[0] === "setTheme")'), [['setTheme', 'light']]);
+  });
+
+  await check('tema forçado deixa o fundo mais opaco; "Sistema" volta ao vidro', async () => {
+    await js(`window.__push.settings(${JSON.stringify({ ...settings, theme: 'light' })})`);
+    assert.equal(await js("document.documentElement.hasAttribute('data-forced')"), true);
+    await js(`window.__push.settings(${JSON.stringify({ ...settings, theme: 'system' })})`);
+    assert.equal(await js("document.documentElement.hasAttribute('data-forced')"), false);
   });
 
   await check('quem pede menos movimento não vê animações (regra @media presente)', async () => {

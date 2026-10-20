@@ -1,10 +1,11 @@
-const { app, BrowserWindow, Menu, Notification, dialog, shell, systemPreferences, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, Menu, Notification, dialog, nativeTheme, shell, systemPreferences, ipcMain, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const providers = require('./providers');
 const updater = require('./updater');
 const alertsLib = require('./lib/alerts');
 const keepAliveLib = require('./lib/keepalive');
+const themeLib = require('./lib/theme');
 const cli = require('./lib/cli');
 
 const REFRESH_MS = 60 * 1000;
@@ -16,7 +17,7 @@ const FLYOUT_MARGIN = 8;
 let win, dock, last = null, hover = true, blurHiddenAt = 0;
 let settings = {
   dockX: null, pinned: false, autoUpdate: true, skipVersion: null, closeToTray: true,
-  autoRefreshToken: true, onboarded: false, alerts: alertsLib.normalizeConfig({}), keepAlive: keepAliveLib.normalizeConfig({}),
+  autoRefreshToken: true, onboarded: false, alerts: alertsLib.normalizeConfig({}), keepAlive: keepAliveLib.normalizeConfig({}), theme: 'system',
 };
 let update = { state: 'none' }, updateInfo = null, lastCheckAt = null;
 const timers = [];
@@ -159,7 +160,7 @@ function sendSettings() {
   if (!alive(win)) return;
   win.webContents.send('settings', {
     closeToTray: settings.closeToTray, autoUpdate: settings.autoUpdate, autoRefreshToken: settings.autoRefreshToken,
-    alerts: settings.alerts, onboarded: !!settings.onboarded, openAtLogin: app.getLoginItemSettings().openAtLogin,
+    theme: settings.theme, alerts: settings.alerts, onboarded: !!settings.onboarded, openAtLogin: app.getLoginItemSettings().openAtLogin,
     keepAlive: { cfg: settings.keepAlive, status: keepAlive ? keepAlive.status() : null, testing: testingKeepAlive },
     lastCheck: lastCheckAt, version: app.getVersion(), maxHeight: maxPanelHeight(),
   });
@@ -210,6 +211,12 @@ async function testKeepAlive() {
 function setAutoRefreshToken(v) {
   settings.autoRefreshToken = !!v;
   providers.configure({ autoRefresh: settings.autoRefreshToken });
+  saveSettings(); sendSettings();
+}
+
+function setTheme(v) {
+  settings.theme = themeLib.normalize(v);
+  nativeTheme.themeSource = settings.theme;
   saveSettings(); sendSettings();
 }
 
@@ -314,6 +321,8 @@ app.whenReady().then(() => {
   settings = { ...settings, ...(stored || {}) };
   settings.alerts = alertsLib.normalizeConfig(settings.alerts);
   settings.keepAlive = keepAliveLib.normalizeConfig(settings.keepAlive);
+  settings.theme = themeLib.normalize(settings.theme);
+  nativeTheme.themeSource = settings.theme; // faz o painel (prefers-color-scheme) seguir a escolha
   keepAlive = keepAliveLib.createKeepAlive({
     runCommand: (svc) => cli.run(svc),
     readFresh: (svc) => (svc === 'claude' ? providers.claude({ force: true }) : providers.codex()),
@@ -359,6 +368,7 @@ app.whenReady().then(() => {
   ipcMain.on('keepalive-test', () => { testKeepAlive().catch(() => { modalOpen = false; testingKeepAlive = false; }); });
   ipcMain.on('set-auto-refresh-token', (_e, v) => setAutoRefreshToken(v));
   ipcMain.on('set-autostart', (_e, v) => setAutostart(v));
+  ipcMain.on('set-theme', (_e, v) => setTheme(v));
   ipcMain.on('onboard-done', (_e, opts) => finishOnboarding(opts));
   ipcMain.on('toggle-main', toggle);
   ipcMain.on('dock-menu', showMenu);
@@ -385,7 +395,7 @@ app.whenReady().then(() => {
     setTimeout(openFlyout, 3000);
     setTimeout(async () => {
       // o acrílico do Windows não aparece em capturas: usa um fundo escuro equivalente
-      await win.webContents.executeJavaScript("document.documentElement.style.background='#1f2026'; document.body.classList.remove('idle')");
+      await win.webContents.executeJavaScript("document.documentElement.style.background = matchMedia('(prefers-color-scheme: dark)').matches ? '#1f2026' : '#f4f4f5'; document.body.classList.remove('idle')");
       if (process.env.WIDGET_OPEN_SETTINGS) await win.webContents.executeJavaScript("document.getElementById('g').click()");
       if (process.env.WIDGET_OPEN_SECTIONS) { // "all" ou índices (1,3) das seções a expandir
         await win.webContents.executeJavaScript(`(() => { const want = ${JSON.stringify(process.env.WIDGET_OPEN_SECTIONS)}; document.querySelectorAll('details.ps').forEach((d, i) => { d.open = want === 'all' || want.split(',').map(Number).includes(i + 1); }); })()`);

@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('api', {
   keepAliveTest: () => ipcRenderer.send('keepalive-test'),
   setAutoRefreshToken: (v) => ipcRenderer.send('set-auto-refresh-token', v),
   setAutostart: (v) => ipcRenderer.send('set-autostart', v),
+  setTheme: (v) => ipcRenderer.send('set-theme', v),
   onboardDone: (opts) => ipcRenderer.send('onboard-done', opts),
   onUpdate: (cb) => ipcRenderer.on('update', (_e, u) => cb(u)),
   updateInstall: () => ipcRenderer.send('update-install'),
