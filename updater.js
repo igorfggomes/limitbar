@@ -54,11 +54,13 @@ async function download(info, onProgress) {
   if (TRUSTED_PREFIX && !info.assetUrl.startsWith(TRUSTED_PREFIX)) throw new Error('Origem do download não confiável');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'limitbar-update-'));
   const file = path.join(dir, 'LimitBar-win32-x64.zip');
+  let out;
   try {
     const res = await fetch(info.assetUrl, { headers: { 'User-Agent': UA() } });
     if (!res.ok || !res.body) throw new Error(`Download falhou (HTTP ${res.status})`);
     const total = Number(res.headers.get('content-length')) || info.size || 0;
-    const hash = crypto.createHash('sha256'), out = fs.createWriteStream(file), reader = res.body.getReader();
+    const hash = crypto.createHash('sha256'), reader = res.body.getReader();
+    out = fs.createWriteStream(file);
     let got = 0;
     for (;;) {
       const { done, value } = await reader.read();
@@ -71,7 +73,10 @@ async function download(info, onProgress) {
     if (info.sha256 && hash.digest('hex') !== info.sha256) throw new Error('Arquivo corrompido (o SHA-256 não confere)');
     return file;
   } catch (e) {
-    fs.rmSync(dir, { recursive: true, force: true });
+    // no Windows, o arquivo ainda pode estar com handle aberto no stream: fecha antes de apagar
+    if (out && !out.destroyed) { try { out.destroy(); } catch {} }
+    // apagar a pasta temp é best-effort: um EBUSY aqui não pode derrubar o app
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
     throw e;
   }
 }
