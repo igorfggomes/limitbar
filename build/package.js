@@ -1,6 +1,13 @@
 // Empacota o LimitBar em dist/LimitBar-win32-x64/LimitBar.exe (não precisa de Node para rodar)
 const { packager } = require('@electron/packager');
+const { execFileSync } = require('child_process');
 const path = require('path');
+
+// Se o LimitBar empacotado estiver aberto, o .exe fica travado e o packager
+// falha ao tentar apagar dist/LimitBar-win32-x64 (EBIJSY no Windows). Fecha antes.
+if (process.platform === 'win32') {
+  try { execFileSync('taskkill', ['/F', '/IM', 'LimitBar.exe', '/T']); } catch { /* não estava rodando */ }
+}
 
 packager({
   dir: path.join(__dirname, '..'),
