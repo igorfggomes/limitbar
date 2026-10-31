@@ -7,6 +7,9 @@ const alertsLib = require('./lib/alerts');
 const keepAliveLib = require('./lib/keepalive');
 const themeLib = require('./lib/theme');
 const cli = require('./lib/cli');
+const signalsLib = require('./lib/signals');
+const hooksClaude = require('./lib/hooks-claude');
+const hooksCodex = require('./lib/hooks-codex');
 
 const REFRESH_MS = 60 * 1000;
 const WIDTH = 340;
@@ -18,11 +21,49 @@ let win, dock, last = null, hover = true, blurHiddenAt = 0;
 let settings = {
   dockX: null, pinned: false, autoUpdate: true, skipVersion: null, closeToTray: true,
   autoRefreshToken: true, onboarded: false, alerts: alertsLib.normalizeConfig({}), keepAlive: keepAliveLib.normalizeConfig({}), theme: 'system',
+  signals: signalsLib.normalizeConfig({}),
 };
 let update = { state: 'none' }, updateInfo = null, lastCheckAt = null;
 const timers = [];
 const alerts = alertsLib.create();
 let keepAlive = null, testingKeepAlive = false, modalOpen = false;
+let signalOffset = 0, signalWatcher = null, everWatched = false;
+const SIGNAL_LOG_MAX = 64 * 1024; // o log não tem valor histórico: acima disso, zera ao começar a observar
+const SIGNAL_LABEL = { stop: 'terminou', notification: 'esperando sua decisão', 'turn-complete': 'terminou' };
+const SVC_LABEL = { claude: 'Claude', codex: 'Codex' };
+
+function handleSignalEvents() {
+  const { events, offset } = signalsLib.readNew(signalsLib.eventsFile(), signalOffset);
+  signalOffset = offset;
+  for (const e of events) {
+    if (!settings.signals.enabled || settings.signals.services[e.svc] === false) continue;
+    notify(`${SVC_LABEL[e.svc] || e.svc} — ${SIGNAL_LABEL[e.kind] || e.kind}`, '');
+  }
+}
+
+function watchSignals() {
+  if (signalWatcher) return;
+  try { fs.mkdirSync(signalsLib.eventsDir(), { recursive: true }); } catch { /* ignora */ }
+  // trunca só aqui (início da observação): durante a observação um hook pode estar escrevendo
+  try {
+    if (fs.statSync(signalsLib.eventsFile()).size > SIGNAL_LOG_MAX) fs.truncateSync(signalsLib.eventsFile(), 0);
+  } catch { /* arquivo ainda não existe ou indisponível */ }
+  // só na primeira vez pulamos para o fim (ignora o que já existia antes de abrir); num reinício
+  // depois de erro, continuamos de onde paramos para não perder eventos do intervalo
+  if (!everWatched) {
+    signalOffset = signalsLib.readNew(signalsLib.eventsFile(), 0).offset;
+    everWatched = true;
+  }
+  try {
+    signalWatcher = fs.watch(signalsLib.eventsDir(), (_evt, filename) => {
+      if (filename === 'events.log') handleSignalEvents();
+    });
+    signalWatcher.on('error', () => {
+      try { signalWatcher.close(); } catch { /* já fechado */ }
+      signalWatcher = null;
+    });
+  } catch { /* pasta indisponível: sem observação, sem som */ }
+}
 
 const alive = (o) => !!o && !o.isDestroyed();
 const file = (n) => path.join(app.getPath('userData'), n);
@@ -160,7 +201,7 @@ function sendSettings() {
   if (!alive(win)) return;
   win.webContents.send('settings', {
     closeToTray: settings.closeToTray, autoUpdate: settings.autoUpdate, autoRefreshToken: settings.autoRefreshToken,
-    theme: settings.theme, alerts: settings.alerts, onboarded: !!settings.onboarded, openAtLogin: app.getLoginItemSettings().openAtLogin,
+    theme: settings.theme, alerts: settings.alerts, signals: settings.signals, onboarded: !!settings.onboarded, openAtLogin: app.getLoginItemSettings().openAtLogin,
     keepAlive: { cfg: settings.keepAlive, status: keepAlive ? keepAlive.status() : null, testing: testingKeepAlive },
     lastCheck: lastCheckAt, version: app.getVersion(), maxHeight: maxPanelHeight(),
   });
@@ -186,6 +227,39 @@ function setKeepAlive(patch) {
     }
   }
   saveSettings(); sendSettings();
+}
+
+function setSignals(patch) {
+  const before = settings.signals;
+  const next = signalsLib.normalizeConfig({ ...before, ...patch, services: { ...before.services, ...((patch && patch.services) || {}) } });
+  const failures = []; // [nome do serviço, motivo] — qualquer falha desliga aquele serviço
+  for (const svc of ['claude', 'codex']) {
+    const was = before.enabled && before.services[svc] !== false;
+    const now = next.enabled && next.services[svc] !== false;
+    if (was === now) continue;
+    const mod = svc === 'claude' ? hooksClaude : hooksCodex;
+    let r;
+    try {
+      r = mod.setEnabled(now);
+    } catch (e) {
+      r = { ok: false, conflict: false, message: (e && e.message) || String(e) };
+    }
+    if (!r || !r.ok) {
+      next.services[svc] = false;
+      failures.push([SVC_LABEL[svc] || svc, r && r.conflict
+        ? 'já existe um "notify" configurado em config.toml; remova-o manualmente.'
+        : ((r && r.message) || 'não foi possível gravar a configuração.')]);
+    }
+  }
+  // o estado persistido/enviado precisa refletir o que de fato ficou no disco, com erro ou sem
+  settings.signals = next;
+  if (next.enabled && !signalWatcher) watchSignals();
+  saveSettings();
+  if (failures.length) {
+    const quais = failures.map(([nome]) => nome).join(' e ');
+    notify(`Não foi possível ligar o alerta para ${quais}`, failures.map(([nome, msg]) => `${nome}: ${msg}`).join(' '));
+  }
+  sendSettings();
 }
 
 // "Testar agora": confirma antes (gasta limite de verdade) e mostra o custo medido nas configurações
@@ -321,6 +395,7 @@ app.whenReady().then(() => {
   settings = { ...settings, ...(stored || {}) };
   settings.alerts = alertsLib.normalizeConfig(settings.alerts);
   settings.keepAlive = keepAliveLib.normalizeConfig(settings.keepAlive);
+  settings.signals = signalsLib.normalizeConfig(settings.signals);
   settings.theme = themeLib.normalize(settings.theme);
   nativeTheme.themeSource = settings.theme; // faz o painel (prefers-color-scheme) seguir a escolha
   keepAlive = keepAliveLib.createKeepAlive({
@@ -365,6 +440,9 @@ app.whenReady().then(() => {
   ipcMain.on('set-auto-update', (_e, v) => setAutoUpdate(v));
   ipcMain.on('set-alerts', (_e, patch) => setAlerts(patch && typeof patch === 'object' ? patch : {}));
   ipcMain.on('set-keepalive', (_e, patch) => setKeepAlive(patch && typeof patch === 'object' ? patch : {}));
+  ipcMain.on('set-signals', (_e, patch) => {
+    try { setSignals(patch && typeof patch === 'object' ? patch : {}); } catch { sendSettings(); } // nunca derruba o processo principal
+  });
   ipcMain.on('keepalive-test', () => { testKeepAlive().catch(() => { modalOpen = false; testingKeepAlive = false; }); });
   ipcMain.on('set-auto-refresh-token', (_e, v) => setAutoRefreshToken(v));
   ipcMain.on('set-autostart', (_e, v) => setAutostart(v));
@@ -416,6 +494,7 @@ app.whenReady().then(() => {
   timers.push(setInterval(refresh, REFRESH_MS));
   watchHover();
   watchTaskbar();
+  if (settings.signals.enabled) watchSignals();
   // verifica logo depois de abrir e a cada 6 horas (se não estiver desligado)
   setTimeout(() => settings.autoUpdate && checkUpdates(), process.env.LIMITBAR_UPDATE_URL ? 3000 : 20000);
   timers.push(setInterval(() => settings.autoUpdate && checkUpdates(), UPDATE_CHECK_MS));
@@ -424,6 +503,6 @@ app.whenReady().then(() => {
 app.on('second-instance', () => { if (alive(win)) openFlyout(); });
 
 // ao sair, para todos os timers antes de as janelas serem destruídas
-app.on('before-quit', () => timers.forEach(clearInterval));
+app.on('before-quit', () => { timers.forEach(clearInterval); if (signalWatcher) signalWatcher.close(); });
 
 app.on('window-all-closed', (e) => e.preventDefault());

@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('api', {
   setAutoUpdate: (v) => ipcRenderer.send('set-auto-update', v),
   setAlerts: (patch) => ipcRenderer.send('set-alerts', patch),
   setKeepAlive: (patch) => ipcRenderer.send('set-keepalive', patch),
+  setSignals: (patch) => ipcRenderer.send('set-signals', patch),
   keepAliveTest: () => ipcRenderer.send('keepalive-test'),
   setAutoRefreshToken: (v) => ipcRenderer.send('set-auto-refresh-token', v),
   setAutostart: (v) => ipcRenderer.send('set-autostart', v),
