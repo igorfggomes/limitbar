@@ -48,6 +48,7 @@ function watchSignals() {
     signalWatcher = fs.watch(signalsLib.eventsDir(), (_evt, filename) => {
       if (filename === 'events.log') handleSignalEvents();
     });
+    signalWatcher.on('error', () => { signalWatcher = null; });
   } catch { /* pasta indisponível: sem observação, sem som */ }
 }
 
