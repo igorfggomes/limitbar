@@ -55,6 +55,22 @@ test('withNotifyDisabled: remove a linha mesmo quando inserida antes de tabelas,
   assert.equal(disabled, original);
 });
 
+test('withNotifyEnabled: notify dentro de [table] não é conflito e a linha da tabela fica intacta', () => {
+  const original = 'model = "o3"\n\n[profiles.work]\nnotify = ["/usr/bin/outro-script.sh"]\n';
+  const { text, conflict } = hooks.withNotifyEnabled(original);
+  assert.equal(conflict, false);
+  assert.ok(text.indexOf('notify = ["node"') < text.indexOf('[profiles.work]')); // inserido antes da tabela
+  assert.match(text, /\[profiles\.work\]\nnotify = \["\/usr\/bin\/outro-script\.sh"\]/); // tabela intacta
+  assert.match(text, /model = "o3"/);
+});
+
+test('withNotifyDisabled: nunca remove um notify de dentro de [table]', () => {
+  const original = 'model = "o3"\n\n[profiles.work]\nnotify = ["/usr/bin/outro-script.sh"]\n';
+  assert.equal(hooks.withNotifyDisabled(original), original); // sem notify nosso no topo: nada muda
+  const enabled = hooks.withNotifyEnabled(original).text;
+  assert.equal(hooks.withNotifyDisabled(enabled), original); // remove só o nosso, no topo
+});
+
 test('setEnabled: liga, detecta conflito, desliga — num config.toml temporário', () => {
   const dir = tmpDir();
   fs.writeFileSync(path.join(dir, 'config.toml'), 'model = "o3"\n');

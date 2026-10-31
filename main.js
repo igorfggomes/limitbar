@@ -27,7 +27,8 @@ let update = { state: 'none' }, updateInfo = null, lastCheckAt = null;
 const timers = [];
 const alerts = alertsLib.create();
 let keepAlive = null, testingKeepAlive = false, modalOpen = false;
-let signalOffset = 0, signalWatcher = null;
+let signalOffset = 0, signalWatcher = null, everWatched = false;
+const SIGNAL_LOG_MAX = 64 * 1024; // o log não tem valor histórico: acima disso, zera ao começar a observar
 const SIGNAL_LABEL = { stop: 'terminou', notification: 'esperando sua decisão', 'turn-complete': 'terminou' };
 const SVC_LABEL = { claude: 'Claude', codex: 'Codex' };
 
@@ -43,12 +44,24 @@ function handleSignalEvents() {
 function watchSignals() {
   if (signalWatcher) return;
   try { fs.mkdirSync(signalsLib.eventsDir(), { recursive: true }); } catch { /* ignora */ }
-  signalOffset = signalsLib.readNew(signalsLib.eventsFile(), 0).offset; // ignora o que já existia antes de abrir
+  // trunca só aqui (início da observação): durante a observação um hook pode estar escrevendo
+  try {
+    if (fs.statSync(signalsLib.eventsFile()).size > SIGNAL_LOG_MAX) fs.truncateSync(signalsLib.eventsFile(), 0);
+  } catch { /* arquivo ainda não existe ou indisponível */ }
+  // só na primeira vez pulamos para o fim (ignora o que já existia antes de abrir); num reinício
+  // depois de erro, continuamos de onde paramos para não perder eventos do intervalo
+  if (!everWatched) {
+    signalOffset = signalsLib.readNew(signalsLib.eventsFile(), 0).offset;
+    everWatched = true;
+  }
   try {
     signalWatcher = fs.watch(signalsLib.eventsDir(), (_evt, filename) => {
       if (filename === 'events.log') handleSignalEvents();
     });
-    signalWatcher.on('error', () => { signalWatcher = null; });
+    signalWatcher.on('error', () => {
+      try { signalWatcher.close(); } catch { /* já fechado */ }
+      signalWatcher = null;
+    });
   } catch { /* pasta indisponível: sem observação, sem som */ }
 }
 
@@ -219,22 +232,32 @@ function setKeepAlive(patch) {
 function setSignals(patch) {
   const before = settings.signals;
   const next = signalsLib.normalizeConfig({ ...before, ...patch, services: { ...before.services, ...((patch && patch.services) || {}) } });
-  let codexConflict = false;
+  const failures = []; // [nome do serviço, motivo] — qualquer falha desliga aquele serviço
   for (const svc of ['claude', 'codex']) {
     const was = before.enabled && before.services[svc] !== false;
     const now = next.enabled && next.services[svc] !== false;
     if (was === now) continue;
-    if (svc === 'claude') hooksClaude.setEnabled(now);
-    else {
-      const r = hooksCodex.setEnabled(now);
-      if (now && !r.ok) { codexConflict = true; next.services.codex = false; }
+    const mod = svc === 'claude' ? hooksClaude : hooksCodex;
+    let r;
+    try {
+      r = mod.setEnabled(now);
+    } catch (e) {
+      r = { ok: false, conflict: false, message: (e && e.message) || String(e) };
+    }
+    if (!r || !r.ok) {
+      next.services[svc] = false;
+      failures.push([SVC_LABEL[svc] || svc, r && r.conflict
+        ? 'já existe um "notify" configurado em config.toml; remova-o manualmente.'
+        : ((r && r.message) || 'não foi possível gravar a configuração.')]);
     }
   }
+  // o estado persistido/enviado precisa refletir o que de fato ficou no disco, com erro ou sem
   settings.signals = next;
   if (next.enabled && !signalWatcher) watchSignals();
   saveSettings();
-  if (codexConflict) {
-    notify('Não foi possível ligar para o Codex', 'Já existe um "notify" configurado em config.toml. Remova-o manualmente para usar este alerta.');
+  if (failures.length) {
+    const quais = failures.map(([nome]) => nome).join(' e ');
+    notify(`Não foi possível ligar o alerta para ${quais}`, failures.map(([nome, msg]) => `${nome}: ${msg}`).join(' '));
   }
   sendSettings();
 }
@@ -417,7 +440,9 @@ app.whenReady().then(() => {
   ipcMain.on('set-auto-update', (_e, v) => setAutoUpdate(v));
   ipcMain.on('set-alerts', (_e, patch) => setAlerts(patch && typeof patch === 'object' ? patch : {}));
   ipcMain.on('set-keepalive', (_e, patch) => setKeepAlive(patch && typeof patch === 'object' ? patch : {}));
-  ipcMain.on('set-signals', (_e, patch) => setSignals(patch && typeof patch === 'object' ? patch : {}));
+  ipcMain.on('set-signals', (_e, patch) => {
+    try { setSignals(patch && typeof patch === 'object' ? patch : {}); } catch { sendSettings(); } // nunca derruba o processo principal
+  });
   ipcMain.on('keepalive-test', () => { testKeepAlive().catch(() => { modalOpen = false; testingKeepAlive = false; }); });
   ipcMain.on('set-auto-refresh-token', (_e, v) => setAutoRefreshToken(v));
   ipcMain.on('set-autostart', (_e, v) => setAutostart(v));

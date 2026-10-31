@@ -63,6 +63,38 @@ test('setEnabled: liga e desliga de ponta a ponta num settings.json temporário'
   }
 });
 
+test('setEnabled: settings.json inválido não é sobrescrito — lança e preserva o arquivo', () => {
+  const dir = tmpDir();
+  const file = path.join(dir, 'settings.json');
+  const corrompido = '{ "permissions": { "allow": [ }\n'; // JSON quebrado, editado à mão
+  fs.writeFileSync(file, corrompido);
+  const prev = process.env.CLAUDE_CONFIG_DIR;
+  process.env.CLAUDE_CONFIG_DIR = dir;
+  try {
+    assert.throws(() => hooks.setEnabled(true), /inválido/);
+    assert.equal(fs.readFileSync(file, 'utf8'), corrompido); // nada foi escrito
+    fs.writeFileSync(file, '"texto"\n'); // JSON válido, mas não é um objeto
+    assert.throws(() => hooks.setEnabled(true), /inválido/);
+    assert.equal(fs.readFileSync(file, 'utf8'), '"texto"\n');
+  } finally {
+    if (prev === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = prev;
+    rmDir(dir);
+  }
+});
+
+test('setEnabled: devolve { ok, conflict } como o módulo do Codex', () => {
+  const dir = tmpDir();
+  const prev = process.env.CLAUDE_CONFIG_DIR;
+  process.env.CLAUDE_CONFIG_DIR = dir;
+  try {
+    assert.deepEqual(hooks.setEnabled(true), { ok: true, conflict: false });
+    assert.deepEqual(hooks.setEnabled(false), { ok: true, conflict: false });
+  } finally {
+    if (prev === undefined) delete process.env.CLAUDE_CONFIG_DIR; else process.env.CLAUDE_CONFIG_DIR = prev;
+    rmDir(dir);
+  }
+});
+
 test('setEnabled: settings.json inexistente é criado', () => {
   const dir = tmpDir();
   const prev = process.env.CLAUDE_CONFIG_DIR;
