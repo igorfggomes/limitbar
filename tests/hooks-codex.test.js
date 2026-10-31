@@ -39,6 +39,22 @@ test('withNotifyDisabled: não mexe num notify de outra origem', () => {
   assert.equal(hooks.withNotifyDisabled(original), original);
 });
 
+test('withNotifyEnabled: insere antes do primeiro [table] quando existem tabelas no arquivo', () => {
+  const original = '[hooks.state]\n\n[hooks.state.\'foo:bar:0:0\']\ntrusted_hash = "x"\n';
+  const { text, conflict } = hooks.withNotifyEnabled(original);
+  assert.equal(conflict, false);
+  assert.ok(text.indexOf('notify') < text.indexOf('['));
+  assert.match(text, /\[hooks\.state\]/);
+  assert.match(text, /trusted_hash = "x"/);
+});
+
+test('withNotifyDisabled: remove a linha mesmo quando inserida antes de tabelas, restaurando o original', () => {
+  const original = '[hooks.state]\n\n[hooks.state.\'foo:bar:0:0\']\ntrusted_hash = "x"\n';
+  const enabled = hooks.withNotifyEnabled(original).text;
+  const disabled = hooks.withNotifyDisabled(enabled);
+  assert.equal(disabled, original);
+});
+
 test('setEnabled: liga, detecta conflito, desliga — num config.toml temporário', () => {
   const dir = tmpDir();
   fs.writeFileSync(path.join(dir, 'config.toml'), 'model = "o3"\n');
