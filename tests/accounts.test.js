@@ -83,3 +83,30 @@ test('switchTo grava as credenciais do perfil no .credentials.json real e marca 
 test('switchTo com id inexistente lança erro', () => {
   assert.throws(() => accounts.switchTo(dir, 'nao-existe'));
 });
+
+test('resyncActive atualiza o conteúdo do perfil ativo sem mudar seu id (rotação de refreshToken)', () => {
+  const id = accounts.saveProfile(dir, 'Pessoal', creds('RT1'));
+  const novasCreds = creds('RT1-ROTACIONADO');
+  accounts.resyncActive(dir, novasCreds);
+  const p = accounts.readProfile(dir, id);
+  assert.deepEqual(p.credentials, novasCreds);
+  assert.equal(p.id, id);
+  assert.equal(accounts.listProfiles(dir).length, 1); // não criou um perfil novo
+});
+
+test('resyncActive sem conta ativa não faz nada', () => {
+  assert.doesNotThrow(() => accounts.resyncActive(dir, creds('RT1')));
+});
+
+test('switchTo sincroniza a conta de saída com o que está de fato no disco antes de trocar', () => {
+  const idA = accounts.saveProfile(dir, 'Pessoal', creds('RT1'));
+  const idB = accounts.saveProfile(dir, 'Corp', creds('RT2')); // fica ativo por último
+  // simula uma renovação de token: o disco tem um refreshToken diferente do que foi salvo em B
+  const rotated = creds('RT2-ROTACIONADO');
+  providers.writeAtomic(providers.credPath(), JSON.stringify(rotated));
+  accounts.switchTo(dir, idA);
+  const writtenForA = JSON.parse(fs.readFileSync(providers.credPath(), 'utf8'));
+  assert.equal(writtenForA.claudeAiOauth.refreshToken, 'RT1');
+  const profileB = accounts.readProfile(dir, idB);
+  assert.deepEqual(profileB.credentials, rotated);
+});

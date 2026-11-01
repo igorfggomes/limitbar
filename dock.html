@@ -53,7 +53,7 @@ window.api.onAccounts((a) => {
   const el = document.getElementById('acct');
   const active = (a.list || []).find((p) => p.active);
   el.style.display = (a.list || []).length ? '' : 'none';
-  el.textContent = active ? esc(active.label) : '?';
+  el.textContent = active ? active.label : '?';
   window.api.dockResize(document.getElementById('bar').offsetWidth + 2);
 });
 document.getElementById('acct').onclick = (e) => { e.stopPropagation(); window.api.accountsMenu(); };

@@ -74,13 +74,13 @@ async function refresh() {
 function checkAccountLogin() {
   let creds;
   try { creds = JSON.parse(fs.readFileSync(providers.credPath(), 'utf8')); } catch { return; }
+  const dir = accountsDir();
+  // já tem uma conta ativa rastreada: só sincroniza o que está no disco (cobre rotação de token)
+  if (accountsLib.readActiveId(dir)) { accountsLib.resyncActive(dir, creds); return; }
+  if (!accountsLib.listProfiles(dir).length) return; // ninguém nunca usou a feature: nada a comparar
   const id = accountsLib.identify(creds);
   if (!id) return;
-  const dir = accountsDir();
-  if (accountsLib.readProfile(dir, id)) {
-    if (accountsLib.readActiveId(dir) !== id) { accountsLib.setActiveId(dir, id); sendSettings(); }
-    return;
-  }
+  if (accountsLib.readProfile(dir, id)) { accountsLib.setActiveId(dir, id); return; }
   if (notifiedUnknownLogins.has(id)) return;
   notifiedUnknownLogins.add(id);
   notify('Login novo do Claude detectado', 'Clique para abrir o LimitBar e salvar esta conta.');
@@ -146,7 +146,11 @@ function createDock() {
   });
   dock.setAlwaysOnTop(true, 'screen-saver');
   dock.loadFile('dock.html');
-  dock.webContents.on('did-finish-load', () => { dock.webContents.send('update', update); if (last) dock.webContents.send('data', last); });
+  dock.webContents.on('did-finish-load', () => {
+    dock.webContents.send('update', update);
+    if (last) dock.webContents.send('data', last);
+    dock.webContents.send('accounts', accountsPayload());
+  });
   dock.on('moved', () => { // só desliza na horizontal, preso à altura da barra
     const [x] = dock.getPosition();
     dock.setPosition(x, dockBaseY());
@@ -177,19 +181,23 @@ function maxPanelHeight() {
   return screen.getPrimaryDisplay().workArea.height - 2 * FLYOUT_MARGIN;
 }
 
-function sendSettings() {
-  if (!alive(win)) return;
+function accountsPayload() {
   const dir = accountsDir();
   const activeId = accountsLib.readActiveId(dir);
-  const accountsPayload = { list: accountsLib.listProfiles(dir).map((p) => ({ ...p, active: p.id === activeId })), hasUnknownLogin: false };
+  return { list: accountsLib.listProfiles(dir).map((p) => ({ ...p, active: p.id === activeId })), hasUnknownLogin: notifiedUnknownLogins.size > 0 };
+}
+
+function sendSettings() {
+  if (!alive(win)) return;
+  const payload = accountsPayload();
   win.webContents.send('settings', {
     closeToTray: settings.closeToTray, autoUpdate: settings.autoUpdate, autoRefreshToken: settings.autoRefreshToken,
     theme: settings.theme, alerts: settings.alerts, onboarded: !!settings.onboarded, openAtLogin: app.getLoginItemSettings().openAtLogin,
     keepAlive: { cfg: settings.keepAlive, status: keepAlive ? keepAlive.status() : null, testing: testingKeepAlive },
     lastCheck: lastCheckAt, version: app.getVersion(), maxHeight: maxPanelHeight(),
-    accounts: accountsPayload,
+    accounts: payload,
   });
-  if (alive(dock)) dock.webContents.send('accounts', accountsPayload);
+  if (alive(dock)) dock.webContents.send('accounts', payload);
 }
 
 function setAlerts(patch) {
@@ -247,7 +255,7 @@ function setTheme(v) {
 }
 
 function accountsSwitch(id) {
-  if (providers.isRefreshing()) return; // evita trocar o arquivo no meio de uma renovação de token
+  if (providers.isRefreshing()) { sendSettings(); return; } // evita trocar o arquivo no meio de uma renovação de token
   try { accountsLib.switchTo(accountsDir(), id); } catch { /* perfil removido nesse meio tempo */ }
   sendSettings();
   refresh();
