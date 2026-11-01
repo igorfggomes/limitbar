@@ -277,7 +277,7 @@ test('isRefreshing fica true durante a renovação e false depois', async () => 
   writeCreds({ expiresAt: Date.now() - 1000 });
   let sawTrue = false;
   global.fetch = fakeFetch([
-    [TOKEN, async (_u, init) => { sawTrue = providers.isRefreshing(); return json({ access_token: 'AT2', refresh_token: 'RT2', expires_in: 3600 }); }],
+    [TOKEN, async (_u, init) => { await Promise.resolve(); sawTrue = providers.isRefreshing(); return json({ access_token: 'AT2', refresh_token: 'RT2', expires_in: 3600 }); }],
     [USAGE, usageFor('AT2')],
   ]);
   await providers.claude();
