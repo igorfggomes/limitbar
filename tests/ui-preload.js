@@ -8,10 +8,13 @@ window.api = {
   onSettings: (cb) => { window.__push.settings = cb; },
   onUpdate: (cb) => { window.__push.update = cb; },
   onHover: (cb) => { window.__push.hover = cb; },
+  onAccounts: (cb) => { window.__push.accounts = cb; },
   refresh: rec('refresh'), closePanel: rec('closePanel'), hidePanel: rec('hidePanel'), resize: rec('resize'),
   setCloseToTray: rec('setCloseToTray'), setAutoUpdate: rec('setAutoUpdate'), setAlerts: rec('setAlerts'),
   setKeepAlive: rec('setKeepAlive'), keepAliveTest: rec('keepAliveTest'), setAutoRefreshToken: rec('setAutoRefreshToken'),
   setAutostart: rec('setAutostart'), setTheme: rec('setTheme'), onboardDone: rec('onboardDone'),
   toggleMain: rec('toggleMain'), dockMenu: rec('dockMenu'), dockResize: rec('dockResize'), // usadas só pela faixa
   updateInstall: rec('updateInstall'), updateDismiss: rec('updateDismiss'), updateCheck: rec('updateCheck'),
+  accountsSwitch: rec('accountsSwitch'), accountsRename: rec('accountsRename'), accountsRemove: rec('accountsRemove'),
+  accountsSaveCurrent: rec('accountsSaveCurrent'), accountsMenu: rec('accountsMenu'),
 };
