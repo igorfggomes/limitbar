@@ -84,6 +84,7 @@ function writeAtomic(file, text) {
 function renewToken() {
   if (refreshing) return refreshing;
   refreshing = (async () => {
+    await null; // cede o microtask para que `refreshing` já esteja marcado antes do fetch (isRefreshing)
     if (Date.now() < refreshBlockedUntil) throw new ProviderError('session-expired', MSG.expired);
     const { o } = readCreds();
     const used = o.refreshToken;
@@ -230,4 +231,7 @@ async function codex() {
   }
 }
 
-module.exports = { claude, codex, configure, ProviderError, _resetForTests };
+module.exports = {
+  claude, codex, configure, ProviderError, _resetForTests,
+  writeAtomic, credPath, invalidateCache: () => { claudeCache = null; }, isRefreshing: () => !!refreshing,
+};

@@ -5,10 +5,16 @@ const fs = require('fs');
 const path = require('path');
 const { tmpDir, rmDir } = require('./helpers');
 const accounts = require('../lib/accounts');
+const providers = require('../providers');
 
-let dir;
-test.beforeEach(() => { dir = tmpDir('limitbar-accounts-'); });
-test.afterEach(() => rmDir(dir));
+let dir, credDir;
+test.beforeEach(() => {
+  dir = tmpDir('limitbar-accounts-');
+  credDir = tmpDir('limitbar-accounts-cred-');
+  process.env.CLAUDE_CONFIG_DIR = credDir;
+  providers._resetForTests();
+});
+test.afterEach(() => { delete process.env.CLAUDE_CONFIG_DIR; rmDir(dir); rmDir(credDir); });
 
 const creds = (rt) => ({ claudeAiOauth: { accessToken: 'AT', refreshToken: rt, expiresAt: Date.now() + 3600e3 } });
 
@@ -63,4 +69,17 @@ test('setActiveId(dir, null) limpa a conta ativa', () => {
   accounts.setActiveId(dir, null);
   assert.equal(accounts.readActiveId(dir), null);
   assert.ok(accounts.readProfile(dir, id), 'o perfil continua salvo');
+});
+
+test('switchTo grava as credenciais do perfil no .credentials.json real e marca como ativo', () => {
+  const id = accounts.saveProfile(dir, 'Pessoal', creds('RT1'));
+  accounts.saveProfile(dir, 'Corp', creds('RT2')); // fica ativo por último
+  accounts.switchTo(dir, id);
+  const written = JSON.parse(fs.readFileSync(providers.credPath(), 'utf8'));
+  assert.equal(written.claudeAiOauth.refreshToken, 'RT1');
+  assert.equal(accounts.readActiveId(dir), id);
+});
+
+test('switchTo com id inexistente lança erro', () => {
+  assert.throws(() => accounts.switchTo(dir, 'nao-existe'));
 });

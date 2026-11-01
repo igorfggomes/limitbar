@@ -253,3 +253,34 @@ test('leitura sem cache (force) consulta de novo, mas respeita a espera do 429',
   await providers.claude({ force: true });
   assert.equal(global.fetch.count(USAGE), n, 'force não fura a espera do 429');
 });
+
+test('credPath aponta para o arquivo de credenciais do CLAUDE_CONFIG_DIR atual', () => {
+  assert.equal(providers.credPath(), credFile());
+});
+
+test('writeAtomic grava o conteúdo trocando o arquivo de uma vez', () => {
+  providers.writeAtomic(credFile(), JSON.stringify({ a: 1 }));
+  assert.deepEqual(readCreds(), { a: 1 });
+});
+
+test('invalidateCache força nova consulta na próxima leitura', async () => {
+  writeCreds();
+  global.fetch = fakeFetch([[USAGE, usageFor('AT1')]]);
+  await providers.claude();
+  assert.equal(global.fetch.count(USAGE), 1);
+  providers.invalidateCache();
+  await providers.claude();
+  assert.equal(global.fetch.count(USAGE), 2, 'releu em vez de usar o cache');
+});
+
+test('isRefreshing fica true durante a renovação e false depois', async () => {
+  writeCreds({ expiresAt: Date.now() - 1000 });
+  let sawTrue = false;
+  global.fetch = fakeFetch([
+    [TOKEN, async (_u, init) => { sawTrue = providers.isRefreshing(); return json({ access_token: 'AT2', refresh_token: 'RT2', expires_in: 3600 }); }],
+    [USAGE, usageFor('AT2')],
+  ]);
+  await providers.claude();
+  assert.equal(sawTrue, true);
+  assert.equal(providers.isRefreshing(), false);
+});
