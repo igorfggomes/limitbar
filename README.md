@@ -1,8 +1,8 @@
 # LimitBar
 
-**Seus limites de 5 horas e semanal do Claude e do Codex, sempre visíveis na barra de tarefas do Windows.**
+**Seus limites de 5 horas e semanal do Claude e do Codex, sempre visíveis na barra de tarefas do Windows (ou na bandeja do sistema, no Linux).**
 
-Uma faixa pequena sobre a barra de tarefas mostra quanto você já usou de cada janela. Um clique abre um painel colado na barra com barras de progresso, tempo até o reset e ritmo de consumo.
+No Windows, uma faixa pequena sobre a barra de tarefas mostra quanto você já usou de cada janela. No Linux não existe um equivalente único de "barra de tarefas" entre GNOME, KDE, XFCE etc., então a interface é um ícone de bandeja comum com a mesma informação no tooltip. Nos dois casos, um clique abre o mesmo painel com barras de progresso, tempo até o reset e ritmo de consumo.
 
 <p align="center">
   <img src="docs/faixa.png" alt="Faixa sobre a barra de tarefas com as quatro porcentagens" height="48">
@@ -20,24 +20,26 @@ Uma faixa pequena sobre a barra de tarefas mostra quanto você já usou de cada 
 
 ## Recursos
 
-- **Faixa na barra de tarefas** com Claude e Codex (5h e semanal). Âmbar a partir de 70%, vermelho com ⚠ a partir de 90%; a borda acompanha a pior janela. Arraste pela alça `⋮⋮` para posicionar.
+- **Faixa na barra de tarefas** (Windows) ou **ícone de bandeja** (Linux) com Claude e Codex (5h e semanal). Na faixa do Windows: âmbar a partir de 70%, vermelho com ⚠ a partir de 90%; a borda acompanha a pior janela. Arraste pela alça `⋮⋮` para posicionar.
 - **Painel** com barras de progresso, marcador de ritmo (onde você *deveria* estar) e horário do reset ao passar o mouse.
 - **Previsão de esgotamento**: "no ritmo atual, o limite acaba hoje às 14:32".
-- **Alertas do Windows** configuráveis (50 a 95%, aviso de reset, silenciar por serviço).
-- **Tema** Sistema, Claro ou Escuro, com fundo acrílico do Windows 11.
-- **Atualização com um clique**, com conferência SHA-256.
+- **Alertas do sistema** configuráveis (50 a 95%, aviso de reset, silenciar por serviço).
+- **Tema** Sistema, Claro ou Escuro (com fundo acrílico no Windows 11).
+- **Atualização com um clique** no Windows, com conferência SHA-256 (no Linux, baixe o `.tar.gz` manualmente — ver [Atualizações](#atualizações)).
 - **Janela de 5h automática** (opcional, desligada por padrão): veja [abaixo](#janela-de-5h-automática-opcional).
 - **Renovação automática do login do Claude** (pode ser desligada).
-- **Iniciar com o Windows** e mensagens de primeiro uso que dizem o que fazer se faltar o Claude Code ou o Codex.
-- Acessível: teclado (`Esc`, `F5`, `Ctrl+,`), leitores de tela, contraste verificado por teste e sem animações se o Windows pedir.
+- **Iniciar com o sistema** e mensagens de primeiro uso que dizem o que fazer se faltar o Claude Code ou o Codex.
+- Acessível: teclado (`Esc`, `F5`, `Ctrl+,`), leitores de tela, contraste verificado por teste e sem animações se o sistema pedir.
 
 ## Requisitos
 
-- Windows 11
-- Claude Code e/ou Codex CLI instalados e logados no mesmo usuário do Windows
+- Windows 11, ou Linux com GNOME/KDE/XFCE (precisa de suporte a ícone de bandeja — em GNOME puro, uma extensão como o [AppIndicator](https://extensions.gnome.org/extension/615/appindicator-support/))
+- Claude Code e/ou Codex CLI instalados e logados no mesmo usuário do sistema
 - [Node.js](https://nodejs.org) 18+ (só para instalar a partir do código)
 
 ## Instalação
+
+### Windows
 
 **Pronto, sem Node.js:** baixe o `LimitBar-win32-x64.zip` na [página de Releases](https://github.com/igorfggomes/limitbar/releases/latest), extraia e abra o `LimitBar.exe`. O executável não é assinado, então o SmartScreen pode avisar: **Mais informações → Executar assim mesmo**.
 
@@ -49,16 +51,30 @@ cd limitbar
 powershell -ExecutionPolicy Bypass -File instalar.ps1
 ```
 
-**Rodar direto do código:** `npm install` e `npm start`.
+### Linux
+
+**Pronto, sem Node.js:** baixe o `LimitBar-linux-x64.tar.gz` na [página de Releases](https://github.com/igorfggomes/limitbar/releases/latest), extraia e rode o executável `LimitBar` de dentro da pasta.
+
+**A partir do código** (instala em `~/.local/opt/LimitBar` e cria entrada no menu de aplicativos):
+
+```bash
+git clone https://github.com/igorfggomes/limitbar.git
+cd limitbar
+bash instalar.sh
+```
+
+### Rodar direto do código (qualquer SO)
+
+`npm install` e `npm start`.
 
 ## Uso
 
 | Ação | Resultado |
 |---|---|
-| Clique na faixa | Abre ou fecha o painel |
+| Clique na faixa (Windows) / no ícone da bandeja (Linux) | Abre ou fecha o painel |
 | ⚙ no painel | Configurações: tema, alertas, janela de 5h, login do Claude, atualizações |
-| Clique direito na faixa | Menu: atualizar, minimizar ao fechar, manter aberto, iniciar com o Windows, sair |
-| Arrastar `⋮⋮` | Move a faixa (posição salva) |
+| Clique direito na faixa/ícone | Menu: atualizar, minimizar ao fechar, manter aberto, iniciar com o sistema, sair |
+| Arrastar `⋮⋮` (só Windows) | Move a faixa (posição salva) |
 
 ## Como funciona
 
@@ -93,12 +109,13 @@ Roda numa pasta temporária vazia, sem variáveis de chave de API, e nunca chama
 
 ## Atualizações
 
-O LimitBar consulta as [Releases](https://github.com/igorfggomes/limitbar/releases) ao abrir e a cada 6 horas. Havendo versão nova, aparece um **⬆** na faixa; **Atualizar agora** baixa o zip, confere o SHA-256, troca os arquivos e reabre o app. Se algo falhar, a versão atual é mantida e suas configurações não são tocadas. Funciona no app empacotado em pasta com permissão de escrita; nos demais casos, abre a página da Release. Dá para procurar na hora (⚙) ou desligar a verificação automática (menu da faixa).
+O LimitBar consulta as [Releases](https://github.com/igorfggomes/limitbar/releases) ao abrir e a cada 6 horas. Havendo versão nova, aparece um **⬆** na faixa; **Atualizar agora** baixa o zip, confere o SHA-256, troca os arquivos e reabre o app. Se algo falhar, a versão atual é mantida e suas configurações não são tocadas. Funciona no app empacotado em pasta com permissão de escrita; nos demais casos, abre a página da Release. Dá para procurar na hora (⚙) ou desligar a verificação automática (menu da faixa). **No Linux a atualização com um clique ainda não existe** (só existe o pacote `.zip` do Windows); a verificação avisa que há versão nova e abre a página da Release pra baixar o `.tar.gz` manualmente.
 
 ## Limitações
 
-- A faixa é uma janela posicionada sobre a barra de tarefas (o Windows 11 não permite desenhar dentro dela) e é reerguida quando a barra vem para a frente.
-- Testado em um monitor, com a barra embaixo.
+- No Windows, a faixa é uma janela posicionada sobre a barra de tarefas (o Windows 11 não permite desenhar dentro dela) e é reerguida quando a barra vem para a frente. No Linux não há faixa — a interface é um ícone de bandeja, sem a mesma visibilidade constante.
+- "Iniciar com o sistema" no Linux grava um `.desktop` em `~/.config/autostart` (padrão XDG); não foi testado em todo ambiente de desktop.
+- Testado em um monitor, com a barra embaixo (Windows) / num só monitor (Linux).
 
 ## Desenvolvimento
 
@@ -109,9 +126,9 @@ npm run test:ui # verificações da interface num Electron oculto
 npm start
 ```
 
-O GitHub executa os testes a cada `push` e `pull request` (Node 20 e 24).
+O GitHub executa os testes a cada `push` e `pull request` (Node 20 e 24, Windows e Linux) e empacota os dois sistemas pra pegar regressão de empacotamento cedo.
 
-**Publicar uma versão:** aumente `version` no `package.json`, acrescente `## X.Y.Z` no `CHANGELOG.md`, faça o commit e rode `git tag vX.Y.Z && git push origin main vX.Y.Z`. O fluxo **Release** roda os testes, empacota e publica o zip com o `.sha256` e as notas do CHANGELOG. Tags com hífen (`v1.4.0-beta.1`) saem como pré-lançamento e não são oferecidas pela atualização automática.
+**Publicar uma versão:** aumente `version` no `package.json`, acrescente `## X.Y.Z` no `CHANGELOG.md`, faça o commit e rode `git tag vX.Y.Z && git push origin main vX.Y.Z`. O fluxo **Release** roda os testes, empacota pra Windows e Linux e publica o zip/tar.gz de cada um com o `.sha256` e as notas do CHANGELOG. Tags com hífen (`v1.4.0-beta.1`) saem como pré-lançamento e não são oferecidas pela atualização automática.
 
 ## Licença
 

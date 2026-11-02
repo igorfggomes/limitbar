@@ -10,11 +10,12 @@ permissions:
 
 jobs:
   test:
-    name: Testes (Node ${{ matrix.node }})
-    runs-on: windows-latest
+    name: Testes (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [windows-latest, ubuntu-latest]
         node: [20, 24]
     steps:
       - uses: actions/checkout@v4
@@ -27,7 +28,7 @@ jobs:
       - run: npm test
 
   package:
-    name: Empacotamento
+    name: Empacotamento (Windows)
     needs: test
     runs-on: windows-latest
     steps:
@@ -40,3 +41,18 @@ jobs:
       - run: npm run package
       - name: Confere o conteúdo do pacote
         run: node scripts/check-package.js
+
+  package-linux:
+    name: Empacotamento (Linux)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run package:linux
+      - name: Confere o conteúdo do pacote
+        run: node scripts/check-package.js linux

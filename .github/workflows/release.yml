@@ -1,6 +1,8 @@
 name: Release
 
-# Criar uma tag vX.Y.Z publica a Release: empacota, gera o zip + SHA-256 e usa o CHANGELOG.md como notas.
+# Criar uma tag vX.Y.Z publica a Release: empacota pra Windows e Linux, gera zip/tar.gz + SHA-256
+# de cada um e usa o CHANGELOG.md como notas. O job do Windows cria a Release; o do Linux só
+# anexa o pacote dele (precisa do job do Windows ter terminado primeiro).
 on:
   push:
     tags: ['v*']
@@ -9,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  release-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,7 +53,7 @@ jobs:
           $hash = (Get-FileHash LimitBar-win32-x64.zip -Algorithm SHA256).Hash.ToLower()
           "$hash  LimitBar-win32-x64.zip" | Set-Content -Encoding ascii LimitBar-win32-x64.zip.sha256
 
-      - name: Publica a Release
+      - name: Publica a Release (cria, com o pacote do Windows)
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,3 +65,38 @@ jobs:
             --title "LimitBar ${GITHUB_REF_NAME#v}" \
             --notes-file notes.md \
             $flags
+
+  release-linux:
+    needs: release-windows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Testes
+        run: npm test
+
+      - name: Empacota
+        run: npm run package:linux
+
+      - name: Confere o conteúdo do pacote
+        run: node scripts/check-package.js linux
+
+      - name: Gera o tar.gz e o SHA-256
+        run: |
+          tar -czf LimitBar-linux-x64.tar.gz -C dist LimitBar-linux-x64
+          sha256sum LimitBar-linux-x64.tar.gz > LimitBar-linux-x64.tar.gz.sha256
+
+      - name: Anexa o pacote do Linux na Release já criada
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" \
+            LimitBar-linux-x64.tar.gz LimitBar-linux-x64.tar.gz.sha256 \
+            --clobber

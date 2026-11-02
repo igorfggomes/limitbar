@@ -49,19 +49,22 @@ function fakeSpawn(behavior) {
     const child = new EventEmitter();
     child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.pid = 4321;
     calls.push({ file, args, opts, dirExisted: opts && opts.cwd ? fs.existsSync(opts.cwd) : null });
-    if (file !== 'taskkill') setImmediate(() => behavior(child, opts));
+    if (file !== 'taskkill' && file !== 'kill') setImmediate(() => behavior(child, opts));
     return child;
   };
   fn.calls = calls;
   return fn;
 }
 const ENV = { ComSpec: 'C:\\Windows\\System32\\cmd.exe', PATH: 'x', ANTHROPIC_API_KEY: 'segredo', OPENAI_API_KEY: 'segredo' };
+// "platform" é injetado nos testes pra cobrir os dois ramos (win/posix) sem depender do SO
+// que está rodando o teste de verdade (a suíte roda tanto no Windows quanto no Linux no CI).
+const WIN = { env: ENV, platform: 'win32' };
 
-test('run: sucesso com código 0; roda numa pasta vazia, sem chaves de API, e limpa depois', async () => {
+test('run (win): sucesso com código 0; roda numa pasta vazia, sem chaves de API, e limpa depois', async () => {
   const spawnFn = fakeSpawn((c) => c.emit('close', 0));
   const root = tmpDir();
   try {
-    const r = await cli.run('claude', { spawnFn, env: ENV, tmp: root });
+    const r = await cli.run('claude', { spawnFn, ...WIN, tmp: root });
     assert.deepEqual(r, { ok: true });
     const call = spawnFn.calls[0];
     assert.equal(call.file, ENV.ComSpec);
@@ -81,36 +84,64 @@ test('run: sucesso com código 0; roda numa pasta vazia, sem chaves de API, e li
   } finally { rmDir(root); }
 });
 
-test('run: comando não instalado vira uma mensagem que diz o que fazer', async () => {
+test('run (win): comando não instalado vira uma mensagem que diz o que fazer', async () => {
   const spawnFn = fakeSpawn((c) => { c.stderr.emit('data', "'codex' não é reconhecido como um comando interno"); c.emit('close', 1); });
-  const r = await cli.run('codex', { spawnFn, env: ENV });
+  const r = await cli.run('codex', { spawnFn, ...WIN });
   assert.equal(r.ok, false);
   assert.match(r.error, /não encontrei o comando "codex"/);
   assert.match(r.error, /instale/);
 });
 
-test('run: código de saída diferente de zero informa o código e a última linha de erro', async () => {
+test('run (win): código de saída diferente de zero informa o código e a última linha de erro', async () => {
   const spawnFn = fakeSpawn((c) => { c.stderr.emit('data', 'linha 1\nNot logged in\n'); c.emit('close', 3); });
-  const r = await cli.run('claude', { spawnFn, env: ENV });
+  const r = await cli.run('claude', { spawnFn, ...WIN });
   assert.equal(r.ok, false);
   assert.match(r.error, /código 3/);
   assert.match(r.error, /Not logged in/);
 });
 
-test('run: erro ao iniciar o processo não rejeita a promessa', async () => {
+test('run (win): erro ao iniciar o processo não rejeita a promessa', async () => {
   const spawnFn = fakeSpawn((c) => c.emit('error', new Error('EPERM')));
-  assert.deepEqual(await cli.run('claude', { spawnFn, env: ENV }), { ok: false, error: 'EPERM' });
+  assert.deepEqual(await cli.run('claude', { spawnFn, ...WIN }), { ok: false, error: 'EPERM' });
   const throwing = () => { throw new Error('sem permissão'); };
-  assert.deepEqual(await cli.run('claude', { spawnFn: throwing, env: ENV }), { ok: false, error: 'sem permissão' });
+  assert.deepEqual(await cli.run('claude', { spawnFn: throwing, ...WIN }), { ok: false, error: 'sem permissão' });
 });
 
-test('run: tempo esgotado encerra o processo (e os filhos) e falha', async () => {
+test('run (win): tempo esgotado chama o taskkill com o pid e falha', async () => {
   const spawnFn = fakeSpawn(() => { /* nunca termina */ });
-  const r = await cli.run('claude', { spawnFn, env: ENV, timeoutMs: 30 });
+  const r = await cli.run('claude', { spawnFn, ...WIN, timeoutMs: 30 });
   assert.deepEqual(r, { ok: false, error: 'tempo esgotado' });
   const kill = spawnFn.calls.find((c) => c.file === 'taskkill');
   assert.ok(kill, 'chamou o taskkill');
   assert.deepEqual(kill.args, ['/pid', '4321', '/T', '/F']);
+});
+
+// ------------------------------------------------------------------ execução (Linux/macOS)
+test('run (posix): roda via /bin/sh -c, com o processo desanexado pro grupo poder ser matado', async () => {
+  const spawnFn = fakeSpawn((c) => c.emit('close', 0));
+  const r = await cli.run('claude', { spawnFn, env: ENV, platform: 'linux' });
+  assert.deepEqual(r, { ok: true });
+  const call = spawnFn.calls[0];
+  assert.equal(call.file, '/bin/sh');
+  assert.deepEqual(call.args, ['-c', cli.buildCommand('claude')]);
+  assert.equal(call.opts.detached, true);
+  assert.equal(call.opts.env.ANTHROPIC_API_KEY, undefined);
+});
+
+test('run (posix): "comando não encontrado" do shell também vira a mensagem padrão', async () => {
+  const spawnFn = fakeSpawn((c) => { c.stderr.emit('data', '/bin/sh: 1: codex: not found\n'); c.emit('close', 127); });
+  const r = await cli.run('codex', { spawnFn, env: ENV, platform: 'linux' });
+  assert.equal(r.ok, false);
+  assert.match(r.error, /não encontrei o comando "codex"/);
+});
+
+test('run (posix): tempo esgotado manda SIGKILL pro grupo de processos (pid negativo)', async () => {
+  const spawnFn = fakeSpawn(() => { /* nunca termina */ });
+  const r = await cli.run('claude', { spawnFn, env: ENV, platform: 'linux', timeoutMs: 30 });
+  assert.deepEqual(r, { ok: false, error: 'tempo esgotado' });
+  const kill = spawnFn.calls.find((c) => c.file === 'kill');
+  assert.ok(kill, 'chamou o kill');
+  assert.deepEqual(kill.args, ['-9', '-4321']);
 });
 
 test('run: serviço desconhecido falha sem rodar nada', async () => {

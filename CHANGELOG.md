@@ -3,6 +3,16 @@
 As notas de cada versão aparecem na página de [Releases](https://github.com/igorfggomes/limitbar/releases).
 O fluxo de publicação usa a seção da versão deste arquivo como texto da Release.
 
+## 1.6.0 — 2026-11-02
+
+### Linux (novo)
+- **LimitBar agora roda no Linux**, baixe o `LimitBar-linux-x64.tar.gz` na página de Releases ou instale a partir do código com `bash instalar.sh`.
+- Sem um equivalente único de "barra de tarefas" entre GNOME/KDE/XFCE, a interface no Linux é um **ícone de bandeja** (tooltip com o uso de Claude/Codex, clique abre o painel, clique direito abre o menu) em vez da faixa flutuante do Windows.
+- **Iniciar com o sistema** no Linux grava um `.desktop` em `~/.config/autostart` (padrão XDG), já que a API do Electron para isso só existe no Windows e no macOS.
+- **Janela de 5h automática** funciona nos dois sistemas: no Linux o disparo roda via `/bin/sh -c` (no Windows, via `cmd.exe`, como antes).
+- CI e o fluxo de Release agora testam e empacotam para Windows **e** Linux a cada versão.
+- Limitação conhecida: a atualização com um clique ainda é só para Windows; no Linux, a verificação avisa da versão nova e abre a página da Release pra baixar manualmente.
+
 ## 1.5.1 — 2026-11-02
 
 ### Contas do Claude

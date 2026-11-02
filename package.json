@@ -1,7 +1,7 @@
 {
   "name": "usage-widget",
-  "version": "1.5.1",
-  "description": "Limites de 5h e semanal do Claude e do Codex na barra de tarefas do Windows",
+  "version": "1.6.0",
+  "description": "Limites de 5h e semanal do Claude e do Codex na barra de tarefas do Windows (ou na bandeja do Linux)",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,7 +12,9 @@
     "start": "electron .",
     "test": "node scripts/test.js",
     "package": "node build/package.js",
+    "package:linux": "node build/package.js linux",
     "install_app": "powershell -ExecutionPolicy Bypass -File instalar.ps1",
+    "install_app:linux": "bash instalar.sh",
     "test:ui": "electron tests/ui-smoke.js && electron tests/dock-smoke.js"
   },
   "devDependencies": {

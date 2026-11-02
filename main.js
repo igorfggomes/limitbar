@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Notification, dialog, nativeTheme, shell, systemPreferences, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, Menu, Tray, Notification, dialog, nativeTheme, shell, systemPreferences, ipcMain, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const providers = require('./providers');
@@ -11,14 +11,20 @@ const accountsLib = require('./lib/accounts');
 const signalsLib = require('./lib/signals');
 const hooksClaude = require('./lib/hooks-claude');
 const hooksCodex = require('./lib/hooks-codex');
+const autostartLib = require('./lib/autostart');
 
 const REFRESH_MS = 60 * 1000;
 const WIDTH = 340;
 const DOCK_H = 36;
 const DOCK_DEFAULT_OFFSET = 340; // distância da borda direita da tela (área da bandeja/relógio)
 const FLYOUT_MARGIN = 8;
+// No Windows a barra fica grudada na barra de tarefas (faixa própria, sempre visível); no Linux não
+// existe um equivalente único entre GNOME/KDE/XFCE, então a interface vira um ícone de bandeja comum
+// e o painel principal abre perto dele — ver createTray()/getAutostartEnabled()/setAutostart() abaixo.
+const IS_WIN = process.platform === 'win32';
+const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
 
-let win, dock, last = null, hover = true, blurHiddenAt = 0;
+let win, dock, tray, last = null, hover = true, blurHiddenAt = 0;
 const notifiedUnknownLogins = new Set();
 let settings = {
   dockX: null, pinned: false, autoUpdate: true, skipVersion: null, closeToTray: true,
@@ -104,6 +110,7 @@ async function refresh() {
     alerts.evaluate(key, name, reading, settings.alerts).forEach((n) => notify(n.title, n.body));
   }
   [win, dock].forEach((w) => alive(w) && w.webContents.send('data', last));
+  updateTray();
   // janela de 5h parada? (não roda com dados simulados: lá os dados não são de verdade)
   if (keepAlive && !process.env.LIMITBAR_FAKE_DATA) {
     keepAlive.tick({ claude, codex }, settings.keepAlive).catch(() => { /* já registrado na tentativa */ }).finally(sendSettings);
@@ -222,6 +229,28 @@ function resetDockPosition() {
   if (alive(win) && win.isVisible()) placeFlyout();
 }
 
+// ---------- bandeja (Linux, sem faixa própria) ----------
+const pct1 = (p) => `${Math.round(p)}%`;
+const SVC_SHORT = { claude: 'Claude', codex: 'Codex' };
+function trayTooltip() {
+  if (!last) return 'LimitBar';
+  const parts = ['claude', 'codex'].map((k) => {
+    const p = last[k];
+    if (!p || !p.ok || !p.windows.length) return null;
+    return `${SVC_SHORT[k]} ${p.windows.map((w) => pct1(w.percent)).join('/')}`;
+  }).filter(Boolean);
+  return parts.length ? parts.join(' · ') : 'LimitBar';
+}
+function updateTray() {
+  if (alive(tray)) tray.setToolTip(trayTooltip());
+}
+function createTray() {
+  tray = new Tray(ICON_PATH);
+  tray.setToolTip('LimitBar');
+  tray.on('click', toggle);
+  tray.on('right-click', showMenu);
+}
+
 // A barra do Windows sobe por cima da faixa quando você interage com ela (clique, menu iniciar...).
 // Reerguer uma janela que já está no topo não muda nada na tela, então é seguro reerguer sempre:
 // a cada 100 ms enquanto o mouse está na barra (e por 2,5 s depois), e a cada 1 s no resto do tempo
@@ -255,7 +284,7 @@ function sendSettings() {
   const payload = accountsPayload();
   win.webContents.send('settings', {
     closeToTray: settings.closeToTray, autoUpdate: settings.autoUpdate, autoRefreshToken: settings.autoRefreshToken,
-    theme: settings.theme, alerts: settings.alerts, signals: settings.signals, onboarded: !!settings.onboarded, openAtLogin: app.getLoginItemSettings().openAtLogin,
+    theme: settings.theme, alerts: settings.alerts, signals: settings.signals, onboarded: !!settings.onboarded, openAtLogin: getAutostartEnabled(),
     keepAlive: { cfg: settings.keepAlive, status: keepAlive ? keepAlive.status() : null, testing: testingKeepAlive },
     lastCheck: lastCheckAt, version: app.getVersion(), maxHeight: maxPanelHeight(),
     accounts: payload,
@@ -375,13 +404,18 @@ function accountsSaveCurrent(label) {
   sendSettings();
 }
 
+// app.setLoginItemSettings só funciona no Windows/macOS; no Linux o autostart é um .desktop em
+// ~/.config/autostart (lib/autostart.js) — ver o comentário perto de IS_WIN.
+const getAutostartEnabled = () => (IS_WIN ? app.getLoginItemSettings().openAtLogin : autostartLib.isEnabledLinux());
+const setAutostartEnabled = (v) => (IS_WIN ? app.setLoginItemSettings({ openAtLogin: !!v }) : autostartLib.setEnabledLinux(!!v, process.execPath));
+
 function setAutostart(v) {
-  app.setLoginItemSettings({ openAtLogin: !!v });
+  setAutostartEnabled(v);
   sendSettings();
 }
 
 function finishOnboarding(opts) {
-  if (opts && opts.autostart) app.setLoginItemSettings({ openAtLogin: true });
+  if (opts && opts.autostart) setAutostartEnabled(true);
   settings.onboarded = true;
   saveSettings(); sendSettings();
 }
@@ -457,9 +491,9 @@ function showMenu() {
     { label: 'Minimizar ao fechar (✕ só esconde o painel)', type: 'checkbox', checked: settings.closeToTray, click: (i) => setCloseToTray(i.checked) },
     { label: 'Manter aberto ao clicar fora', type: 'checkbox', checked: settings.pinned,
       click: (i) => { settings.pinned = i.checked; saveSettings(); } },
-    { label: 'Iniciar com o Windows', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin,
+    { label: IS_WIN ? 'Iniciar com o Windows' : 'Iniciar com o sistema', type: 'checkbox', checked: getAutostartEnabled(),
       click: (i) => setAutostart(i.checked) },
-    { label: 'Reposicionar faixa no lugar padrão', click: resetDockPosition },
+    IS_WIN ? { label: 'Reposicionar faixa no lugar padrão', click: resetDockPosition } : null,
     { type: 'separator' },
     { label: `LimitBar ${app.getVersion()}`, enabled: false },
     update.state === 'available'
@@ -469,7 +503,7 @@ function showMenu() {
       click: (i) => setAutoUpdate(i.checked) },
     { type: 'separator' },
     { label: 'Sair', click: () => app.quit() },
-  ]).popup({ window: dock });
+  ].filter(Boolean)).popup(alive(dock) ? { window: dock } : {});
 }
 
 app.whenReady().then(() => {
@@ -494,7 +528,8 @@ app.whenReady().then(() => {
   win = new BrowserWindow({
     width: WIDTH, height: 360, show: false,
     frame: false, resizable: false, alwaysOnTop: true, skipTaskbar: true,
-    backgroundMaterial: 'acrylic', backgroundColor: '#00000000',
+    ...(IS_WIN ? { backgroundMaterial: 'acrylic' } : { icon: ICON_PATH }),
+    backgroundColor: '#00000000',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true },
   });
   win.setAlwaysOnTop(true, 'screen-saver');
@@ -512,7 +547,7 @@ app.whenReady().then(() => {
     win.hide();
   });
 
-  createDock();
+  if (IS_WIN) createDock(); else createTray();
 
   ipcMain.on('refresh', refresh);
   // ✕ do painel: esconde (a faixa continua rodando) ou encerra o app, conforme a configuração
@@ -579,7 +614,7 @@ app.whenReady().then(() => {
   refresh();
   timers.push(setInterval(refresh, REFRESH_MS));
   watchHover();
-  watchTaskbar();
+  if (IS_WIN) watchTaskbar();
   if (settings.signals.enabled) watchSignals();
   // verifica logo depois de abrir e a cada 6 horas (se não estiver desligado)
   setTimeout(() => settings.autoUpdate && checkUpdates(), process.env.LIMITBAR_UPDATE_URL ? 3000 : 20000);
