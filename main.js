@@ -116,10 +116,23 @@ function dockBaseY() {
   return top + Math.round(((tb > 0 ? tb : 48) - DOCK_H) / 2);
 }
 
+const DOCK_DEFAULT_W = 190;
+// mantém a faixa dentro da tela principal: um arraste pra fora da borda (ou uma troca de
+// monitor/resolução entre uma sessão e outra) não pode deixar a posição salva fora da vista
+const clampDockX = (x, w) => {
+  const b = screen.getPrimaryDisplay().bounds;
+  return Math.min(Math.max(x, b.x), b.x + b.width - w);
+};
+const defaultDockX = (w) => {
+  const b = screen.getPrimaryDisplay().bounds;
+  return b.x + b.width - w - DOCK_DEFAULT_OFFSET;
+};
+
 function createDock() {
-  const b = screen.getPrimaryDisplay().bounds, w = 190;
+  const w = DOCK_DEFAULT_W;
+  const x = settings.dockX == null ? defaultDockX(w) : clampDockX(settings.dockX, w);
   dock = new BrowserWindow({
-    width: w, height: DOCK_H, x: settings.dockX ?? b.x + b.width - w - DOCK_DEFAULT_OFFSET, y: dockBaseY(),
+    width: w, height: DOCK_H, x, y: dockBaseY(),
     frame: false, transparent: true, resizable: false, thickFrame: false, alwaysOnTop: true, skipTaskbar: true,
     focusable: false, hasShadow: false, minHeight: DOCK_H, useContentSize: true, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true },
   });
@@ -132,6 +145,15 @@ function createDock() {
     settings.dockX = x; saveSettings();
     if (alive(win) && win.isVisible()) placeFlyout();
   });
+}
+
+// "Reposicionar faixa": usado quando um arraste ou troca de monitor deixou a faixa fora da vista
+function resetDockPosition() {
+  settings.dockX = null; saveSettings();
+  if (!alive(dock)) return;
+  const w = dock.getBounds().width || DOCK_DEFAULT_W;
+  dock.setPosition(defaultDockX(w), dockBaseY());
+  if (alive(win) && win.isVisible()) placeFlyout();
 }
 
 // A barra do Windows sobe por cima da faixa quando você interage com ela (clique, menu iniciar...).
@@ -304,6 +326,7 @@ function showMenu() {
       click: (i) => { settings.pinned = i.checked; saveSettings(); } },
     { label: 'Iniciar com o Windows', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin,
       click: (i) => setAutostart(i.checked) },
+    { label: 'Reposicionar faixa no lugar padrão', click: resetDockPosition },
     { type: 'separator' },
     { label: `LimitBar ${app.getVersion()}`, enabled: false },
     update.state === 'available'
