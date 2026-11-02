@@ -16,5 +16,5 @@ window.api = {
   toggleMain: rec('toggleMain'), dockMenu: rec('dockMenu'), dockResize: rec('dockResize'), // usadas só pela faixa
   updateInstall: rec('updateInstall'), updateDismiss: rec('updateDismiss'), updateCheck: rec('updateCheck'),
   accountsSwitch: rec('accountsSwitch'), accountsRename: rec('accountsRename'), accountsRemove: rec('accountsRemove'),
-  accountsSaveCurrent: rec('accountsSaveCurrent'), accountsMenu: rec('accountsMenu'),
+  accountsSaveCurrent: rec('accountsSaveCurrent'),
 };

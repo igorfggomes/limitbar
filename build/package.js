@@ -18,7 +18,9 @@ packager({
   icon: path.join(__dirname, 'icon.ico'),
   overwrite: true,
   prune: true,
-  asar: true,
+  // signal-hook.js é chamado como processo standalone (node puro) pelos hooks do Claude Code/Codex,
+  // que não conseguem ler dentro do .asar; precisa estar fora do arquivo, junto do signals.js que ele importa.
+  asar: { unpack: '**/lib/{signal-hook,signals}.js' },
   ignore: [/^\/docs/, /^\/dist/, /^\/\.git/, /^\/build\/(make-icon\.js|icon\.html|package\.js)/, /^\/iniciar\.vbs/, /^\/instalar\.ps1/, /^\/tests/, /^\/scripts/, /^\/\.github/, /^\/CHANGELOG\.md/],
   win32metadata: { ProductName: 'LimitBar', FileDescription: 'Limites do Claude e do Codex na barra de tarefas' },
 }).then((p) => console.log('pronto:', p.join(', '))).catch((e) => { console.error(e); process.exit(1); });

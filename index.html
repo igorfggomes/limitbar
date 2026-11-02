@@ -80,8 +80,25 @@
   details.ps[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
   details.ps > summary:hover { background: var(--track); }
   details.ps > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* mostra a conta ativa mesmo com a seção fechada: sem isso, "Contas salvas" fica escondida demais */
+  .sumbadge { margin-left: 8px; padding: 1px 6px; border-radius: 999px; background: var(--track); color: var(--fg);
+    font-weight: 600; letter-spacing: normal; text-transform: none; font-size: 10px; }
   .pbody { padding: 12px 2px 4px; }
   .opt { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  /* linha de conta salva: rótulo pode ser comprido ("Profissional - WorkG"); quebra pras ações
+     em vez de estourar a largura do painel (era a causa do scroll horizontal) */
+  /* #acct-list não é .opt, então ".opt + .opt" não cobre a borda dela com a descrição acima
+     e com a linha "Conta selecionada" abaixo — sem isso ficava tudo grudado */
+  #acct-list { margin-top: 10px; }
+  #acct-list + .opt { margin-top: 14px; }
+  /* "Trocar" (ação sobre uma conta já salva) e "Salvar" (criar uma nova) são ações diferentes;
+     uma linha separa visualmente pra não parecerem a mesma lista grudada */
+  .acct-save-row { margin-top: 14px !important; padding-top: 12px; border-top: 1px solid var(--line); }
+  .acct-row { flex-wrap: wrap; row-gap: 6px; }
+  .acct-row > label { display: flex; align-items: center; gap: 8px; min-width: 0; cursor: pointer; }
+  .acct-row > label > span { min-width: 0; overflow-wrap: anywhere; }
+  .acct-row .acct-actions { display: flex; gap: 6px; flex: none; }
+  .acct-row .act.sm { height: 24px; padding: 0 10px; font-size: 11px; }
   label.opt { cursor: pointer; }
   .opt + .opt { margin-top: 12px; }
   .opt b { display: block; font-size: 13px; font-weight: 600; }
@@ -213,7 +230,7 @@
       </div>
     </details>
     <details class="ps">
-      <summary>Alertas</summary>
+      <summary>Notificações</summary>
       <div class="pbody">
       <label class="opt">
         <span><b>Alertas de uso</b></span>
@@ -227,6 +244,14 @@
           <input type="checkbox" id="al-reset" class="sw">
         </label>
       </div>
+      <label class="opt" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line)">
+        <span><b>Avisar quando terminar ou precisar de você</b><small>Toca um som ao fim de uma resposta ou quando uma ferramenta espera sua permissão.</small></span>
+        <input type="checkbox" id="sg-on" class="sw">
+      </label>
+      <div class="grp" id="sg-opts">
+        <div class="opt col"><b>Para</b><div class="chips" id="sg-svc"></div></div>
+      </div>
+      <small class="hint">Exige Node.js no PATH e só funciona com o LimitBar aberto.</small>
     </div>
     </details>
     <details class="ps">
@@ -246,21 +271,8 @@
       </div>
     </div>
     </details>
-    <details class="ps">
-      <summary>Avisos de atividade</summary>
-      <div class="pbody">
-      <label class="opt">
-        <span><b>Avisar quando terminar ou precisar de você</b><small>Toca um som ao fim de uma resposta ou quando uma ferramenta espera sua permissão.</small></span>
-        <input type="checkbox" id="sg-on" class="sw">
-      </label>
-      <div class="grp" id="sg-opts">
-        <div class="opt col"><b>Para</b><div class="chips" id="sg-svc"></div></div>
-      </div>
-      <small class="hint">Exige Node.js no PATH e só funciona com o LimitBar aberto.</small>
-    </div>
-    </details>
-    <details class="ps">
-      <summary>Claude</summary>
+    <details class="ps" id="claude-section">
+      <summary><span>Claude<b id="acct-badge" class="sumbadge" hidden></b></span></summary>
       <div class="pbody">
       <label class="opt">
         <span><b>Renovar o login sozinho</b><small>Se o token expirar, o LimitBar renova.</small></span>
@@ -270,9 +282,13 @@
         <b>Contas salvas</b>
         <small>Troque entre contas (ex. pessoal e corporativa) sem logar de novo no terminal.</small>
         <div id="acct-list"></div>
-        <div class="opt">
+        <div class="opt acct-switch-row">
+          <span><b>Conta selecionada</b><small>Escolha uma conta acima e troque pra ela.</small></span>
+          <button class="act" id="acct-switch" disabled>Trocar</button>
+        </div>
+        <div class="opt acct-save-row">
           <input type="text" id="acct-label" placeholder="Apelido da conta atual" maxlength="40" style="flex:1">
-          <button class="act" id="acct-save">Salvar conta atual</button>
+          <button class="act" id="acct-save">Salvar</button>
         </div>
       </div>
     </div>
@@ -310,6 +326,7 @@ const SVC = {
 const KEYS = ['claude', 'codex'];
 const $ = (id) => document.getElementById(id);
 const hm = (t) => new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 // idade do dado: nada nos primeiros 2 minutos (é o normal); depois "há N min" ou "há N h"
 function ago(t) {
   const m = Math.floor((Date.now() - t) / 60000);
@@ -490,7 +507,6 @@ function renderUpdate(u) {
   // procurando/atualizado só aparecem na tela de configurações; o aviso fica para o que pede ação
   if (u.state === 'none' || u.state === 'checking' || u.state === 'uptodate' || (updHidden && u.state === 'error')) { el.hidden = true; return; }
   el.hidden = false; el.classList.toggle('err', u.state === 'error');
-  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   if (u.state === 'available') {
     el.innerHTML = `<div class="l">⬆<span>Nova versão <b>${esc(u.version)}</b> disponível</span></div>
       <div class="bt"><button class="pri" id="ub1">${u.canInstall ? 'Atualizar agora' : 'Ver no GitHub'}</button><button id="ub2">Depois</button></div>`;
@@ -557,27 +573,59 @@ function renderKA(ka) {
   $('ka-test').disabled = !!busy;
   $('ka-test').textContent = busy ? 'Enviando…' : 'Testar';
 }
+let accountsSeen = false; // abre a seção "Claude" sozinha na primeira vez que existir conta salva, pra ninguém perder a feature atrás de um painel fechado
+let acctSelected = null; // id escolhido no rádio da lista, pro botão "Trocar"
+let acctRenaming = null; // id em edição inline; window.prompt() não existe no Electron
+function updateAcctSwitchBtn(list) {
+  const sel = list.find((p) => p.id === acctSelected);
+  $('acct-switch').disabled = !sel || sel.active;
+}
 function renderAccounts(a) {
+  const list = (a && a.list) || [];
+  const badge = $('acct-badge');
+  const active = list.find((p) => p.active);
+  badge.hidden = !active;
+  if (active) badge.textContent = active.label;
+  if (list.length && !accountsSeen) { accountsSeen = true; $('claude-section').open = true; }
+  // mantém a seleção se a conta ainda existir; senão cai pra ativa (ou primeira da lista)
+  if (!list.some((p) => p.id === acctSelected)) acctSelected = (active || list[0] || {}).id || null;
+
   const box = $('acct-list');
   box.innerHTML = '';
-  const list = (a && a.list) || [];
   if (!list.length) {
     const p = document.createElement('small');
     p.textContent = 'Nenhuma conta salva ainda.';
     box.appendChild(p);
+    updateAcctSwitchBtn(list);
     return;
   }
   list.forEach((p) => {
     const row = document.createElement('div');
-    row.className = 'opt';
-    row.innerHTML = `
-      <span><b>${esc(p.label)}</b>${p.active ? '<small>ativa agora</small>' : ''}</span>
-      <button class="act" data-act="switch" data-id="${p.id}" ${p.active ? 'disabled' : ''}>Usar</button>
-      <button class="act" data-act="rename" data-id="${p.id}">Renomear</button>
-      <button class="act" data-act="remove" data-id="${p.id}">Remover</button>
-    `;
+    row.className = 'opt acct-row';
+    if (p.id === acctRenaming) {
+      row.innerHTML = `
+        <input type="text" class="acct-rename-input" data-id="${p.id}" value="${esc(p.label)}" maxlength="40" style="flex:1 1 140px; min-width:0">
+        <span class="acct-actions">
+          <button class="act sm" data-act="rename-save" data-id="${p.id}">Salvar</button>
+          <button class="act sm" data-act="rename-cancel">Cancelar</button>
+        </span>
+      `;
+    } else {
+      row.innerHTML = `
+        <label>
+          <input type="radio" name="acct-pick" value="${p.id}" ${p.id === acctSelected ? 'checked' : ''}>
+          <span><b>${esc(p.label)}</b>${p.active ? '<small>ativa agora</small>' : ''}</span>
+        </label>
+        <span class="acct-actions">
+          <button class="act sm" data-act="rename" data-id="${p.id}">Renomear</button>
+          <button class="act sm" data-act="remove" data-id="${p.id}">Remover</button>
+        </span>
+      `;
+    }
     box.appendChild(row);
   });
+  if (acctRenaming) { const inp = box.querySelector('.acct-rename-input'); if (inp) { inp.focus(); inp.select(); } }
+  updateAcctSwitchBtn(list);
 }
 window.api.onSettings((s) => {
   cfg = s;
@@ -635,17 +683,34 @@ $('sg-svc').onclick = (e) => {
   window.api.setSignals({ services: { [k]: cfg.signals.services[k] === false } });
 };
 $('th-chips').onclick = (e) => { const b = e.target.closest('.chip'); if (b) window.api.setTheme(b.dataset.v); };
+function acctRenameSave(id) {
+  const input = $('acct-list').querySelector(`.acct-rename-input[data-id="${id}"]`);
+  const novo = input && input.value.trim();
+  acctRenaming = null;
+  if (novo) window.api.accountsRename(id, novo);
+  else renderAccounts((cfg && cfg.accounts) || { list: [] });
+}
 $('acct-list').onclick = (e) => {
   const b = e.target.closest('button[data-act]');
   if (!b) return;
   const { act, id } = b.dataset;
-  if (act === 'switch') window.api.accountsSwitch(id);
-  else if (act === 'remove') { if (confirm('Remover esta conta salva?')) window.api.accountsRemove(id); }
-  else if (act === 'rename') {
-    const novo = prompt('Novo apelido:');
-    if (novo && novo.trim()) window.api.accountsRename(id, novo.trim());
-  }
+  if (act === 'remove') { if (confirm('Remover esta conta salva?')) window.api.accountsRemove(id); }
+  else if (act === 'rename') { acctRenaming = id; renderAccounts((cfg && cfg.accounts) || { list: [] }); }
+  else if (act === 'rename-save') acctRenameSave(id);
+  else if (act === 'rename-cancel') { acctRenaming = null; renderAccounts((cfg && cfg.accounts) || { list: [] }); }
 };
+$('acct-list').onchange = (e) => {
+  if (e.target.name !== 'acct-pick') return;
+  acctSelected = e.target.value;
+  updateAcctSwitchBtn((cfg && cfg.accounts && cfg.accounts.list) || []);
+};
+$('acct-list').addEventListener('keydown', (e) => {
+  const input = e.target.closest('.acct-rename-input');
+  if (!input) return;
+  if (e.key === 'Enter') acctRenameSave(input.dataset.id);
+  else if (e.key === 'Escape') { acctRenaming = null; renderAccounts((cfg && cfg.accounts) || { list: [] }); }
+});
+$('acct-switch').onclick = () => { if (acctSelected) window.api.accountsSwitch(acctSelected); };
 $('acct-save').onclick = () => {
   const el = $('acct-label');
   const label = el.value.trim();

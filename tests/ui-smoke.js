@@ -11,6 +11,8 @@ const settings = {
   closeToTray: true, autoUpdate: true, autoRefreshToken: true, onboarded: true, openAtLogin: false, version: '1.4.1', maxHeight: 900,
   alerts: { enabled: true, levels: [80, 95], onReset: true, services: { claude: true, codex: true } },
   keepAlive: { cfg: { enabled: false, services: { claude: true, codex: true }, ceilingPct: 2 }, status: null, testing: false },
+  signals: { enabled: false, services: { claude: true, codex: true } },
+  accounts: { list: [], hasUnknownLogin: false },
 };
 const reading = () => ({
   updatedAt: Date.now(), accent: '#0067c0',

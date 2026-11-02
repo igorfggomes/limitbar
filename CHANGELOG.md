@@ -3,6 +3,22 @@
 As notas de cada versão aparecem na página de [Releases](https://github.com/igorfggomes/limitbar/releases).
 O fluxo de publicação usa a seção da versão deste arquivo como texto da Release.
 
+## 1.5.1 — 2026-11-02
+
+### Contas do Claude
+- **Trocar conta ficou mais claro**: a lista agora tem um rádio por conta e um botão único "Trocar" (em vez de um "Usar" por linha); o nome "Claude" na seção de configurações ganhou um selo com a conta ativa, visível mesmo com a seção fechada, e ela se abre sozinha na primeira vez que houver conta salva.
+- **Corrigido: renomear não fazia nada.** `window.prompt()` não existe no Electron; a caixa de diálogo nunca aparecia. Agora o apelido é editado direto na linha (Enter salva, Esc cancela).
+- Botão "Salvar conta atual" renomeado para "Salvar".
+- Corrigido o scroll horizontal que aparecia ao abrir a seção "Claude" quando o apelido da conta era longo.
+- Espaçamento entre a lista de contas e as ações "Trocar"/"Salvar" ajustado (estavam coladas).
+
+### Notificações
+- A seção "Alertas" foi renomeada para **"Notificações"** e passou a reunir também o aviso sonoro de fim de resposta/permissão (antes numa seção própria, "Avisos de atividade").
+
+### Correções
+- Faixa da barra de tarefas: o rótulo da conta ativa só respondia a clique exatamente sobre o texto; agora ocupa a altura inteira junto com as barras de uso, num único alvo de clique (abre o painel principal).
+- O hook de "avisar quando terminar" (Stop/Notification do Claude Code e notify do Codex) falhava com "Cannot find module", porque apontava para dentro do `.asar` — um `node` comum não lê esse arquivo, só o próprio Electron. Esses arquivos agora saem do empacotamento (`asar.unpack`) e os hooks apontam para o caminho correto.
+
 ## 1.5.0 — 2026-11-01
 
 ### Contas do Claude

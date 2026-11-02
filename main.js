@@ -375,21 +375,6 @@ function accountsSaveCurrent(label) {
   sendSettings();
 }
 
-function showAccountsMenu() {
-  const dir = accountsDir();
-  const list = accountsLib.listProfiles(dir);
-  const activeId = accountsLib.readActiveId(dir);
-  if (!list.length) { openFlyout(); return; } // nada salvo ainda: manda direto pro painel
-  Menu.buildFromTemplate([
-    ...list.map((p) => ({
-      label: p.label, type: 'radio', checked: p.id === activeId,
-      click: () => accountsSwitch(p.id),
-    })),
-    { type: 'separator' },
-    { label: 'Gerenciar contas...', click: openFlyout },
-  ]).popup({ window: dock });
-}
-
 function setAutostart(v) {
   app.setLoginItemSettings({ openAtLogin: !!v });
   sendSettings();
@@ -554,7 +539,6 @@ app.whenReady().then(() => {
   ipcMain.on('accounts-rename', (_e, { id, label } = {}) => accountsRename(id, label));
   ipcMain.on('accounts-remove', (_e, id) => accountsRemove(id));
   ipcMain.on('accounts-save-current', (_e, label) => accountsSaveCurrent(label));
-  ipcMain.on('accounts-menu', showAccountsMenu);
   ipcMain.on('resize', (_e, h) => {
     if (!alive(win)) return;
     // janelas não redimensionáveis ignoram pedidos para encolher no Windows: libera só durante a troca

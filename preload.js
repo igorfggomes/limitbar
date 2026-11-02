@@ -29,6 +29,5 @@ contextBridge.exposeInMainWorld('api', {
   accountsRename: (id, label) => ipcRenderer.send('accounts-rename', { id, label }),
   accountsRemove: (id) => ipcRenderer.send('accounts-remove', id),
   accountsSaveCurrent: (label) => ipcRenderer.send('accounts-save-current', label),
-  accountsMenu: () => ipcRenderer.send('accounts-menu'),
   onAccounts: (cb) => ipcRenderer.on('accounts', (_e, a) => cb(a)),
 });

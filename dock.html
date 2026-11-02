@@ -21,6 +21,7 @@
   #v { -webkit-app-region: no-drag; display: flex; align-items: center; gap: 12px; height: 100%;
        padding-right: 4px; cursor: pointer; border-radius: 6px; }
   #v:hover { background: rgba(255,255,255,.10); }
+  #bars { display: flex; align-items: center; gap: 12px; }
   .pill { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
   .pill svg { width: 15px; height: 15px; }
   .w { display: inline-flex; align-items: baseline; gap: 4px; }
@@ -31,14 +32,14 @@
   .sep { color: #71717a; font-weight: 400; }
   .gap { width: 6px; }
   #up { color: #facc15; font-size: 15px; animation: bob 1.6s ease-in-out infinite; }
-  #acct { -webkit-app-region: no-drag; cursor: pointer; color: #a1a1aa; font-size: 11px; padding: 0 2px; border-radius: 6px; }
-  #acct:hover { background: rgba(255,255,255,.10); color: #fff; }
+  /* nome da conta ativa: mora dentro de #v, mesmo hover e clique do resto da faixa */
+  #acct { color: #a1a1aa; font-size: 11px; }
   @keyframes bob { 50% { transform: translateY(-2px); } }
   @media (prefers-reduced-motion: reduce) { #up { animation: none; } #bar { transition: none; } }
 </style>
 </head>
 <body>
-<div id="bar"><span id="grip" title="Arrastar">⋮⋮</span><span id="up" title="Atualização disponível" style="display:none">⬆</span><span id="acct" title="Trocar de conta" style="display:none"></span><span id="v" title="Abrir detalhes"></span></div>
+<div id="bar"><span id="grip" title="Arrastar">⋮⋮</span><span id="up" title="Atualização disponível" style="display:none">⬆</span><span id="v" title="Abrir detalhes"><span id="acct" style="display:none"></span><span id="bars"></span></span></div>
 <script>
 const LOGO = {
   claude: `<svg viewBox="0 0 24 24"><g stroke="#e8845f" stroke-width="2.6" stroke-linecap="round"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></g></svg>`,
@@ -56,7 +57,6 @@ window.api.onAccounts((a) => {
   el.textContent = active ? active.label : '?';
   window.api.dockResize(document.getElementById('bar').offsetWidth + 2);
 });
-document.getElementById('acct').onclick = (e) => { e.stopPropagation(); window.api.accountsMenu(); };
 const level = (p) => (p >= 90 ? 'bad' : p >= 70 ? 'warn' : 'ok');
 
 function until(ms) {
@@ -88,7 +88,7 @@ window.api.onData((d) => {
   if (key === lastKey) return; // nada mudou: não mexe no DOM nem na janela (evita piscar)
   lastKey = key;
   document.getElementById('bar').className = state;
-  document.getElementById('v').innerHTML = html;
+  document.getElementById('bars').innerHTML = html;
   window.api.dockResize(document.getElementById('bar').offsetWidth + 2);
 });
 window.api.onUpdate((u) => {

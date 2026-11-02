@@ -4,10 +4,12 @@ const fs = require('fs');
 const path = require('path');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-const sections = [...html.matchAll(/<details class="ps"([^>]*)>\s*<summary>([^<]+)<\/summary>/g)];
+const sections = [...html.matchAll(/<details class="ps"([^>]*)>\s*<summary>([\s\S]*?)<\/summary>/g)];
+// tira qualquer tag aninhada (ex. o selo de conta ativa em "Claude"), ficando só o texto do título
+const titleOf = (raw) => raw.replace(/<[^>]*>/g, '').trim();
 
 test('configurações: cada seção é um bloco recolhível com título', () => {
-  assert.deepEqual(sections.map((m) => m[2]), ['Janela', 'Aparência', 'Alertas', 'Janela de 5h', 'Avisos de atividade', 'Claude', 'Atualizações']);
+  assert.deepEqual(sections.map((m) => titleOf(m[2])), ['Janela', 'Aparência', 'Notificações', 'Janela de 5h', 'Claude', 'Atualizações']);
 });
 
 test('configurações: todas as seções começam recolhidas (sem o atributo "open")', () => {
