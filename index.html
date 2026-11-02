@@ -247,6 +247,19 @@
     </div>
     </details>
     <details class="ps">
+      <summary>Avisos de atividade</summary>
+      <div class="pbody">
+      <label class="opt">
+        <span><b>Avisar quando terminar ou precisar de você</b><small>Toca um som ao fim de uma resposta ou quando uma ferramenta espera sua permissão.</small></span>
+        <input type="checkbox" id="sg-on" class="sw">
+      </label>
+      <div class="grp" id="sg-opts">
+        <div class="opt col"><b>Para</b><div class="chips" id="sg-svc"></div></div>
+      </div>
+      <small class="hint">Exige Node.js no PATH e só funciona com o LimitBar aberto.</small>
+    </div>
+    </details>
+    <details class="ps">
       <summary>Claude</summary>
       <div class="pbody">
       <label class="opt">
@@ -501,6 +514,8 @@ function renderChips() {
   $('al-levels').innerHTML = LEVEL_CHOICES.map((n) => `<button class="chip" data-v="${n}" aria-pressed="${cfg.alerts.levels.includes(n)}">${n}%</button>`).join('');
   $('al-svc').innerHTML = KEYS.map((k) => `<button class="chip" data-k="${k}" aria-pressed="${cfg.alerts.services[k] !== false}">${SVC[k].name}</button>`).join('');
   $('al-opts').classList.toggle('off', !cfg.alerts.enabled);
+  $('sg-svc').innerHTML = KEYS.map((k) => `<button class="chip" data-k="${k}" aria-pressed="${cfg.signals.services[k] !== false}">${SVC[k].name}</button>`).join('');
+  $('sg-opts').classList.toggle('off', !cfg.signals.enabled);
 }
 const THEME_CHOICES = [['system', 'Sistema'], ['light', 'Claro'], ['dark', 'Escuro']];
 function renderTheme(theme) {
@@ -542,6 +557,7 @@ window.api.onSettings((s) => {
   $('rt').checked = s.autoRefreshToken !== false;
   $('al-on').checked = s.alerts.enabled;
   $('al-reset').checked = s.alerts.onReset;
+  $('sg-on').checked = s.signals.enabled;
   $('welcome').hidden = !!s.onboarded;
   renderChips();
   renderTheme(s.theme || 'system');
@@ -579,6 +595,12 @@ $('al-svc').onclick = (e) => {
   if (!b || !cfg) return;
   const k = b.dataset.k;
   window.api.setAlerts({ services: { [k]: cfg.alerts.services[k] === false } });
+};
+$('sg-on').onchange = (e) => window.api.setSignals({ enabled: e.target.checked });
+$('sg-svc').onclick = (e) => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  const k = b.dataset.k;
+  window.api.setSignals({ services: { [k]: cfg.signals.services[k] === false } });
 };
 $('th-chips').onclick = (e) => { const b = e.target.closest('.chip'); if (b) window.api.setTheme(b.dataset.v); };
 $('ka-on').onchange = (e) => window.api.setKeepAlive({ enabled: e.target.checked });
