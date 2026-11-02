@@ -7,6 +7,7 @@ const alertsLib = require('./lib/alerts');
 const keepAliveLib = require('./lib/keepalive');
 const themeLib = require('./lib/theme');
 const cli = require('./lib/cli');
+const accountsLib = require('./lib/accounts');
 const signalsLib = require('./lib/signals');
 const hooksClaude = require('./lib/hooks-claude');
 const hooksCodex = require('./lib/hooks-codex');
@@ -18,6 +19,7 @@ const DOCK_DEFAULT_OFFSET = 340; // distância da borda direita da tela (área d
 const FLYOUT_MARGIN = 8;
 
 let win, dock, last = null, hover = true, blurHiddenAt = 0;
+const notifiedUnknownLogins = new Set();
 let settings = {
   dockX: null, pinned: false, autoUpdate: true, skipVersion: null, closeToTray: true,
   autoRefreshToken: true, onboarded: false, alerts: alertsLib.normalizeConfig({}), keepAlive: keepAliveLib.normalizeConfig({}), theme: 'system',
@@ -70,6 +72,7 @@ const file = (n) => path.join(app.getPath('userData'), n);
 const readJson = (n, d) => { try { return JSON.parse(fs.readFileSync(file(n), 'utf8')); } catch { return d; } };
 const writeJson = (n, v) => { try { fs.writeFileSync(file(n), JSON.stringify(v)); } catch { /* ignora */ } };
 const saveSettings = () => writeJson('window.json', settings);
+const accountsDir = () => path.join(app.getPath('userData'), 'claude-accounts');
 
 app.setAppUserModelId('LimitBar'); // nome nas notificações do Windows
 
@@ -95,6 +98,7 @@ async function refresh() {
     try { ({ claude, codex } = JSON.parse(fs.readFileSync(process.env.LIMITBAR_FAKE_DATA, 'utf8'))); } catch { /* usa os dados reais */ }
   }
   if (!claude) [claude, codex] = await Promise.all([providers.claude(), providers.codex()]);
+  checkAccountLogin();
   last = { claude, codex, updatedAt: Date.now(), accent: accent() };
   for (const [key, name, reading] of [['claude', 'Claude', claude], ['codex', 'Codex', codex]]) {
     alerts.evaluate(key, name, reading, settings.alerts).forEach((n) => notify(n.title, n.body));
@@ -104,6 +108,23 @@ async function refresh() {
   if (keepAlive && !process.env.LIMITBAR_FAKE_DATA) {
     keepAlive.tick({ claude, codex }, settings.keepAlive).catch(() => { /* já registrado na tentativa */ }).finally(sendSettings);
   }
+}
+
+// Compara o login atual do Claude com os perfis salvos: se mudou pra uma conta já conhecida,
+// só acompanha; se é desconhecida, avisa uma vez (por sessão do app) pra oferecer salvar.
+function checkAccountLogin() {
+  let creds;
+  try { creds = JSON.parse(fs.readFileSync(providers.credPath(), 'utf8')); } catch { return; }
+  const dir = accountsDir();
+  // já tem uma conta ativa rastreada: só sincroniza o que está no disco (cobre rotação de token)
+  if (accountsLib.readActiveId(dir)) { accountsLib.resyncActive(dir, creds); return; }
+  if (!accountsLib.listProfiles(dir).length) return; // ninguém nunca usou a feature: nada a comparar
+  const id = accountsLib.identify(creds);
+  if (!id) return;
+  if (accountsLib.readProfile(dir, id)) { accountsLib.setActiveId(dir, id); return; }
+  if (notifiedUnknownLogins.has(id)) return;
+  notifiedUnknownLogins.add(id);
+  notify('Login novo do Claude detectado', 'Clique para abrir o LimitBar e salvar esta conta.');
 }
 
 // ---------- flyout: abre grudado na barra de tarefas, ancorado na faixa ----------
@@ -179,7 +200,11 @@ function createDock() {
   });
   dock.setAlwaysOnTop(true, 'screen-saver');
   dock.loadFile('dock.html');
-  dock.webContents.on('did-finish-load', () => { dock.webContents.send('update', update); if (last) dock.webContents.send('data', last); });
+  dock.webContents.on('did-finish-load', () => {
+    dock.webContents.send('update', update);
+    if (last) dock.webContents.send('data', last);
+    dock.webContents.send('accounts', accountsPayload());
+  });
   dock.on('moved', () => { // só desliza na horizontal, preso à altura da barra
     const [x] = dock.getPosition();
     dock.setPosition(x, dockBaseY());
@@ -219,14 +244,23 @@ function maxPanelHeight() {
   return screen.getPrimaryDisplay().workArea.height - 2 * FLYOUT_MARGIN;
 }
 
+function accountsPayload() {
+  const dir = accountsDir();
+  const activeId = accountsLib.readActiveId(dir);
+  return { list: accountsLib.listProfiles(dir).map((p) => ({ ...p, active: p.id === activeId })), hasUnknownLogin: notifiedUnknownLogins.size > 0 };
+}
+
 function sendSettings() {
   if (!alive(win)) return;
+  const payload = accountsPayload();
   win.webContents.send('settings', {
     closeToTray: settings.closeToTray, autoUpdate: settings.autoUpdate, autoRefreshToken: settings.autoRefreshToken,
     theme: settings.theme, alerts: settings.alerts, signals: settings.signals, onboarded: !!settings.onboarded, openAtLogin: app.getLoginItemSettings().openAtLogin,
     keepAlive: { cfg: settings.keepAlive, status: keepAlive ? keepAlive.status() : null, testing: testingKeepAlive },
     lastCheck: lastCheckAt, version: app.getVersion(), maxHeight: maxPanelHeight(),
+    accounts: payload,
   });
+  if (alive(dock)) dock.webContents.send('accounts', payload);
 }
 
 function setAlerts(patch) {
@@ -314,6 +348,46 @@ function setTheme(v) {
   settings.theme = themeLib.normalize(v);
   nativeTheme.themeSource = settings.theme;
   saveSettings(); sendSettings();
+}
+
+function accountsSwitch(id) {
+  if (providers.isRefreshing()) { sendSettings(); return; } // evita trocar o arquivo no meio de uma renovação de token
+  try { accountsLib.switchTo(accountsDir(), id); } catch { /* perfil removido nesse meio tempo */ }
+  sendSettings();
+  refresh();
+}
+
+function accountsRename(id, label) {
+  accountsLib.rename(accountsDir(), id, label);
+  sendSettings();
+}
+
+function accountsRemove(id) {
+  accountsLib.remove(accountsDir(), id);
+  sendSettings();
+}
+
+function accountsSaveCurrent(label) {
+  let creds;
+  try { creds = JSON.parse(fs.readFileSync(providers.credPath(), 'utf8')); } catch { return; }
+  try { accountsLib.saveProfile(accountsDir(), label, creds); } catch { /* sem refreshToken: nada a salvar */ }
+  notifiedUnknownLogins.delete(accountsLib.identify(creds));
+  sendSettings();
+}
+
+function showAccountsMenu() {
+  const dir = accountsDir();
+  const list = accountsLib.listProfiles(dir);
+  const activeId = accountsLib.readActiveId(dir);
+  if (!list.length) { openFlyout(); return; } // nada salvo ainda: manda direto pro painel
+  Menu.buildFromTemplate([
+    ...list.map((p) => ({
+      label: p.label, type: 'radio', checked: p.id === activeId,
+      click: () => accountsSwitch(p.id),
+    })),
+    { type: 'separator' },
+    { label: 'Gerenciar contas...', click: openFlyout },
+  ]).popup({ window: dock });
 }
 
 function setAutostart(v) {
@@ -476,6 +550,11 @@ app.whenReady().then(() => {
   ipcMain.on('update-install', installUpdate);
   ipcMain.on('update-dismiss', dismissUpdate);
   ipcMain.on('update-check', () => checkUpdates(true));
+  ipcMain.on('accounts-switch', (_e, id) => accountsSwitch(id));
+  ipcMain.on('accounts-rename', (_e, { id, label } = {}) => accountsRename(id, label));
+  ipcMain.on('accounts-remove', (_e, id) => accountsRemove(id));
+  ipcMain.on('accounts-save-current', (_e, label) => accountsSaveCurrent(label));
+  ipcMain.on('accounts-menu', showAccountsMenu);
   ipcMain.on('resize', (_e, h) => {
     if (!alive(win)) return;
     // janelas não redimensionáveis ignoram pedidos para encolher no Windows: libera só durante a troca

@@ -31,12 +31,14 @@
   .sep { color: #71717a; font-weight: 400; }
   .gap { width: 6px; }
   #up { color: #facc15; font-size: 15px; animation: bob 1.6s ease-in-out infinite; }
+  #acct { -webkit-app-region: no-drag; cursor: pointer; color: #a1a1aa; font-size: 11px; padding: 0 2px; border-radius: 6px; }
+  #acct:hover { background: rgba(255,255,255,.10); color: #fff; }
   @keyframes bob { 50% { transform: translateY(-2px); } }
   @media (prefers-reduced-motion: reduce) { #up { animation: none; } #bar { transition: none; } }
 </style>
 </head>
 <body>
-<div id="bar"><span id="grip" title="Arrastar">⋮⋮</span><span id="up" title="Atualização disponível" style="display:none">⬆</span><span id="v" title="Abrir detalhes"></span></div>
+<div id="bar"><span id="grip" title="Arrastar">⋮⋮</span><span id="up" title="Atualização disponível" style="display:none">⬆</span><span id="acct" title="Trocar de conta" style="display:none"></span><span id="v" title="Abrir detalhes"></span></div>
 <script>
 const LOGO = {
   claude: `<svg viewBox="0 0 24 24"><g stroke="#e8845f" stroke-width="2.6" stroke-linecap="round"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></g></svg>`,
@@ -46,6 +48,15 @@ const NAME = { claude: 'Claude', codex: 'Codex' };
 const SHORT = { '5 horas': '5h', 'Semanal': 'sem' };
 // texto que vai para dentro de atributos (title) precisa de escape: mensagens de erro trazem aspas
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+window.api.onAccounts((a) => {
+  const el = document.getElementById('acct');
+  const active = (a.list || []).find((p) => p.active);
+  el.style.display = (a.list || []).length ? '' : 'none';
+  el.textContent = active ? active.label : '?';
+  window.api.dockResize(document.getElementById('bar').offsetWidth + 2);
+});
+document.getElementById('acct').onclick = (e) => { e.stopPropagation(); window.api.accountsMenu(); };
 const level = (p) => (p >= 90 ? 'bad' : p >= 70 ? 'warn' : 'ok');
 
 function until(ms) {

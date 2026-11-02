@@ -266,6 +266,15 @@
         <span><b>Renovar o login sozinho</b><small>Se o token expirar, o LimitBar renova.</small></span>
         <input type="checkbox" id="rt" class="sw">
       </label>
+      <div class="opt col">
+        <b>Contas salvas</b>
+        <small>Troque entre contas (ex. pessoal e corporativa) sem logar de novo no terminal.</small>
+        <div id="acct-list"></div>
+        <div class="opt">
+          <input type="text" id="acct-label" placeholder="Apelido da conta atual" maxlength="40" style="flex:1">
+          <button class="act" id="acct-save">Salvar conta atual</button>
+        </div>
+      </div>
     </div>
     </details>
     <details class="ps">
@@ -548,6 +557,28 @@ function renderKA(ka) {
   $('ka-test').disabled = !!busy;
   $('ka-test').textContent = busy ? 'Enviando…' : 'Testar';
 }
+function renderAccounts(a) {
+  const box = $('acct-list');
+  box.innerHTML = '';
+  const list = (a && a.list) || [];
+  if (!list.length) {
+    const p = document.createElement('small');
+    p.textContent = 'Nenhuma conta salva ainda.';
+    box.appendChild(p);
+    return;
+  }
+  list.forEach((p) => {
+    const row = document.createElement('div');
+    row.className = 'opt';
+    row.innerHTML = `
+      <span><b>${esc(p.label)}</b>${p.active ? '<small>ativa agora</small>' : ''}</span>
+      <button class="act" data-act="switch" data-id="${p.id}" ${p.active ? 'disabled' : ''}>Usar</button>
+      <button class="act" data-act="rename" data-id="${p.id}">Renomear</button>
+      <button class="act" data-act="remove" data-id="${p.id}">Remover</button>
+    `;
+    box.appendChild(row);
+  });
+}
 window.api.onSettings((s) => {
   cfg = s;
   if (s.maxHeight) document.documentElement.style.setProperty('--maxh', s.maxHeight + 'px');
@@ -562,6 +593,7 @@ window.api.onSettings((s) => {
   renderChips();
   renderTheme(s.theme || 'system');
   renderKA(s.keepAlive);
+  renderAccounts(s.accounts);
   if (s.version) $('ver').textContent = 'LimitBar ' + s.version;
   lastCheck = s.lastCheck || lastCheck;
   if (lastUpdate.state === 'none') renderUpdateStatus(lastUpdate);
@@ -603,6 +635,24 @@ $('sg-svc').onclick = (e) => {
   window.api.setSignals({ services: { [k]: cfg.signals.services[k] === false } });
 };
 $('th-chips').onclick = (e) => { const b = e.target.closest('.chip'); if (b) window.api.setTheme(b.dataset.v); };
+$('acct-list').onclick = (e) => {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const { act, id } = b.dataset;
+  if (act === 'switch') window.api.accountsSwitch(id);
+  else if (act === 'remove') { if (confirm('Remover esta conta salva?')) window.api.accountsRemove(id); }
+  else if (act === 'rename') {
+    const novo = prompt('Novo apelido:');
+    if (novo && novo.trim()) window.api.accountsRename(id, novo.trim());
+  }
+};
+$('acct-save').onclick = () => {
+  const el = $('acct-label');
+  const label = el.value.trim();
+  if (!label) { el.focus(); return; }
+  window.api.accountsSaveCurrent(label);
+  el.value = '';
+};
 $('ka-on').onchange = (e) => window.api.setKeepAlive({ enabled: e.target.checked });
 $('ka-svc').onclick = (e) => {
   const b = e.target.closest('.chip'); if (!b || !cfg || !cfg.keepAlive) return;

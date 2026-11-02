@@ -230,4 +230,7 @@ async function codex() {
   }
 }
 
-module.exports = { claude, codex, configure, ProviderError, _resetForTests };
+module.exports = {
+  claude, codex, configure, ProviderError, _resetForTests,
+  writeAtomic, credPath, invalidateCache: () => { claudeCache = null; }, isRefreshing: () => !!refreshing,
+};

@@ -25,4 +25,10 @@ contextBridge.exposeInMainWorld('api', {
   dockMenu: () => ipcRenderer.send('dock-menu'),
   dockResize: (w) => ipcRenderer.send('dock-resize', w),
   resize: (h) => ipcRenderer.send('resize', h),
+  accountsSwitch: (id) => ipcRenderer.send('accounts-switch', id),
+  accountsRename: (id, label) => ipcRenderer.send('accounts-rename', { id, label }),
+  accountsRemove: (id) => ipcRenderer.send('accounts-remove', id),
+  accountsSaveCurrent: (label) => ipcRenderer.send('accounts-save-current', label),
+  accountsMenu: () => ipcRenderer.send('accounts-menu'),
+  onAccounts: (cb) => ipcRenderer.on('accounts', (_e, a) => cb(a)),
 });
