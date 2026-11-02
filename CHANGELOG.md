@@ -3,6 +3,19 @@
 As notas de cada versão aparecem na página de [Releases](https://github.com/igorfggomes/limitbar/releases).
 O fluxo de publicação usa a seção da versão deste arquivo como texto da Release.
 
+## 1.5.0 — 2026-11-01
+
+### Contas do Claude
+- **Troca de conta** (ex. pessoal e corporativa): salve várias contas do Claude Code em ⚙ → Claude e troque entre elas pelo LimitBar — a próxima conversa no terminal já usa a conta selecionada, sem logout/login manual.
+- Detecta um login feito direto no terminal que ainda não foi salvo e avisa, perguntando se quer guardá-lo; quem nunca usa a função não recebe nenhum aviso.
+- Rótulo da conta ativa, clicável, na faixa da barra de tarefas; lista com usar/renomear/remover nas configurações.
+
+### Avisos de atividade
+- **Som ao terminar ou precisar de uma decisão**: liga/desliga em ⚙ → Avisos de atividade, por Claude Code e/ou Codex — toca quando a resposta termina ou quando uma ferramenta está esperando sua permissão.
+
+### Correções
+- A faixa não fica mais presa fora da tela depois de um arraste para a borda ou de trocar de monitor/resolução; "Reposicionar faixa no lugar padrão" no menu de clique direito resolve o caso de quem já ficou com a faixa sumida.
+
 ## 1.4.1 — 2026-10-20
 
 ### Melhorias
