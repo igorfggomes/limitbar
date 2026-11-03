@@ -38,7 +38,12 @@ test('appendEvent: duas chamadas acrescentam, não substituem', () => {
 test('appendEvent: pasta sem permissão de escrita não lança', () => {
   const { appendEvent } = require('../lib/signal-hook');
   const prev = process.env.LIMITBAR_EVENTS_DIR;
-  process.env.LIMITBAR_EVENTS_DIR = 'Z:\\caminho\\que\\nao\\existe\\de\\jeito\\nenhum';
+  // "Z:\..." (unidade inexistente) falha garantido no Windows, mas no Linux não começa com "/" e
+  // vira um caminho RELATIVO válido — mkdirSync recursivo criaria mesmo essa pasta de nome esquisito
+  // dentro do repositório. /proc é virtual e nunca aceita mkdir, nem como root: funciona nos dois SOs.
+  process.env.LIMITBAR_EVENTS_DIR = process.platform === 'win32'
+    ? 'Z:\\caminho\\que\\nao\\existe\\de\\jeito\\nenhum'
+    : '/proc/limitbar-caminho-que-nao-existe';
   try { assert.doesNotThrow(() => appendEvent('claude', 'stop', 1)); }
   finally { if (prev === undefined) delete process.env.LIMITBAR_EVENTS_DIR; else process.env.LIMITBAR_EVENTS_DIR = prev; }
 });
